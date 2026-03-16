@@ -1,27 +1,53 @@
-%% regression_with_rt_earlyLateSplit.m
+%% cycle_early_late.m
 % PURPOSE:
-%   Take each subject's FIRST nEarly trials and LAST nLate trials,
-%   run the SAME time-bin logistic regression family (with RT + interactions),
-%   do model selection (by BIC/AIC deltas) separately for EARLY vs LATE,
-%   then PRINT two big figures:
-%     (1) EARLY: top4 models, ALL terms (including interactions)
-%     (2) LATE : top4 models, ALL terms (including interactions)
+%   Compare EARLY vs LATE trial periods in the confidence-volatility analysis
+%   using the same time-resolved regression pipeline.
+%
+% MAIN PROCEDURE:
+%   1) Compute predicted performance (p_perf_all) using subject-wise RPF fits.
+%   2) Compute time-resolved residual volatility (resVol_time) from motion
+%      energy across 40 normalized within-trial time bins.
+%   3) Split each subject's trials into EARLY and LATE sets based on complete
+%      cycles of coherence × volatility combinations.
+%
+% REGRESSION ANALYSIS:
+%   Logistic regression predicting binary confidence:
+%
+%       conf ~ perf + corr + vol + rt + interactions
+%
+%   Two levels of regression are performed separately for EARLY and LATE:
+%     (1) pooled regression across all subjects at each time bin
+%         (used for AIC/BIC model comparison)
+%     (2) per-subject regression at each time bin for selected models
+%         (used for plotting beta time courses).
+%
+% OPTIONAL VISUALIZATION:
+%   - Combined big figure:
+%       compares EARLY vs LATE coefficient time courses side by side
+%       for selected models and terms.
+%
+% DEPENDENT VARIABLE:
+%   Binary confidence obtained by thresholding continuous confidence.
+%
+% KEY PREDICTORS:
+%   perf : predicted performance from RPF
+%   corr : correctness
+%   vol  : residual volatility from motion energy
+%   rt   : log-transformed response time
 %
 % NOTES:
-%   - This script computes p_perf_all (RPF) and resVol_time (motion_energy residual volatility)
-%     ONCE using all valid trials, then subsets trials for EARLY/LATE fits.
-%   - Figures are NOT saved to PDF. They are printed (shown) only.
-%
-% YOU CAN TUNE:
-%   nEarly = 100;   nLate = 100;   and SLOPE_WIN etc if you want later.
+%   - EARLY and LATE are defined within each subject using complete cycles.
+%   - Model selection is done separately for EARLY and LATE.
+%   - Pooled fits can include subject dummy regressors, but per-subject
+%     refits do not.
 
 clear; clc;
 
 %% ===================== USER SETTINGS =====================
-nEarlyCycles = 10;   % 前 n 个循环(cycle/循环)
-nLateCycles  = 10;   % 后 m 个循环(cycle/循环)
+nEarlyCycles = 10;   
+nLateCycles  = 10;   
 
-% 你也可以想要不对称：比如前10个循环，后6个循环
+
 % nEarlyCycles = 10;
 % nLateCycles  = 6;
 
@@ -383,7 +409,7 @@ if DO_PLOT
         useSubjDummies, minN_pooled, minN_sub, ...
         FORCE_FIXED_MODELS, fixedTopIdx);
 
-    % 用 4 列合并图替代原来的 early / late 分开图
+
     plot_bigfigure_4cols_M8M9_earlyLate(SelEarly, SelLate, t_norm, colSub, []);
 end
 
@@ -428,7 +454,7 @@ if FORCE_FIXED_MODELS
     top4Idx   = fixedTopIdx(:);
     top4Names = modelNames(top4Idx);
 else
-    % 你原来的 model selection（模型选择）逻辑不变
+
 end
 
 % score = mean([meanDeltaAIC(:), medDeltaAIC(:), meanDeltaBIC(:), medDeltaBIC(:)], 2, 'omitnan');
@@ -858,7 +884,7 @@ for r = 1:nRows
         'Rotation', 90, ...
         'HorizontalAlignment','center', ...
         'VerticalAlignment','middle', ...
-        'Interpreter','tex', ...     % ✅ 用 tex
+        'Interpreter','tex', ... 
         'Clipping','on');
 
 
@@ -910,11 +936,10 @@ for r = 1:nRows
 
         yline(ax,0,'k--','LineWidth',0.6,'HandleVisibility','off');
         xlim(ax,[0 1]);
-        % 若外部传了统一 y 轴，就强制用它；否则用本函数算出来的 yLimGlobal
         if exist('yLimGlobalForced','var') && ~isempty(yLimGlobalForced)
             ylim(ax, yLimGlobalForced);
         else
-            ylim(ax, yLimShared);   % ✅ 用你刚算的 percentile range
+            ylim(ax, yLimShared);  
         end
 
 
@@ -1126,7 +1151,7 @@ for r = 1:nRows
 end
 
 % ===================== FIG LAYOUT =====================
-tileSize = 130;   % 想更大就调这里
+tileSize = 130; 
 gapX     = 20;
 gapY     = 14;
 labelW   = 90;
@@ -1194,10 +1219,9 @@ for r = 1:nRows
         m9_has = any(strcmp(Panels(3).Sel.termLabels, allTerms{r})) || any(strcmp(Panels(4).Sel.termLabels, allTerms{r}));
 
         if isLastRow && termIs4way && ~m8_has && m9_has
-            % 用 col1+col2 的 tile 区域做 legend（占两格宽）
-            xPos1 = x0 + labelWNorm;                       % col1 起点
-            yPos1 = yPos;                                  % 当前行 y
-            legW  = 2*tileWNorm + gapXNorm;                % 两格宽 + 中间gap
+            xPos1 = x0 + labelWNorm;        
+            yPos1 = yPos;               
+            legW  = 2*tileWNorm + gapXNorm;    
             legH  = tileHNorm;
 
             axLeg = axes('Parent',fig,'Units','normalized','Position',[xPos1, yPos1, legW, legH]);
@@ -1216,7 +1240,6 @@ for r = 1:nRows
             lgd.Box = 'off';
             lgd.FontSize = 11;
 
-            % 然后：跳过 c=1,2 的画图（保留空白/legend），从 c=3 开始正常画
             if c <= 2
                 continue;
             end

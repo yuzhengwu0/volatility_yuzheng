@@ -1,20 +1,45 @@
-%% regression_with_rt_earlyLateSplit.m
+%% trials_early_late.m
 % PURPOSE:
-%   Take each subject's FIRST nEarly trials and LAST nLate trials,
-%   run the SAME time-bin logistic regression family (with RT + interactions),
-%   do model selection (by BIC/AIC deltas) separately for EARLY vs LATE,
-%   then PRINT two big figures:
-%     (1) EARLY: top4 models, ALL terms (including interactions)
-%     (2) LATE : top4 models, ALL terms (including interactions)
-%% NOTES:
-%   - This script computes p_perf_all as subject-specific mean accuracy within each volatility condition,
-%     and computes resVol_time (motion_energy residual volatility) ONCE using all valid trials,
-%     then subsets trials for EARLY/LATE fits.
+%   Compare early vs late trials in the confidence-volatility analysis by
+%   running the same time-resolved regression pipeline separately for each split.
 %
-% YOU CAN TUNE:
-%   nEarly = 100;   nLate = 100;   and SLOPE_WIN etc if you want later.
-
-clear; clc;
+% MAIN PROCEDURE:
+%   1) Split each subject's data into FIRST nEarly trials and LAST nLate trials.
+%   2) Compute predicted performance using subject × volatility × coherence
+%      mean accuracy (p_perf_all).
+%   3) Compute time-resolved residual volatility from motion energy
+%      separately for the EARLY and LATE trial sets.
+%
+% REGRESSION ANALYSIS:
+%   Linear regression predicting logit-transformed continuous confidence:
+%
+%       ConfY ~ perf + corr + vol + rt + interactions
+%
+%   Two levels of regression are performed separately for EARLY and LATE:
+%     (1) pooled regression across all subjects at each time bin
+%         (used for AIC/BIC model comparison)
+%     (2) per-subject regression at each time bin for selected models
+%         (used for plotting beta time courses).
+%
+% OPTIONAL VISUALIZATION:
+%   - Combined big figure:
+%       compares EARLY vs LATE coefficient time courses side by side
+%       for selected models and terms.
+%
+% DEPENDENT VARIABLE:
+%   Confidence in [0,1], slightly shrunk from boundaries and then
+%   logit-transformed.
+%
+% KEY PREDICTORS:
+%   perf : predicted performance
+%   corr : correctness
+%   vol  : residual volatility from motion energy
+%   rt   : log-transformed response time
+%
+% NOTES:
+%   - EARLY and LATE splits are defined within each subject.
+%   - Residual volatility is computed separately for EARLY and LATE trials.
+%   - Pooled model selection can include subject dummy regressors, but per-subject refits do not.
 
 clear; clc;
 

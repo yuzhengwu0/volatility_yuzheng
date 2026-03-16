@@ -1,19 +1,45 @@
-%% regression_with_rt_earlyLateSplit.m
+%% cycle_early_late_cont_conf.m
 % PURPOSE:
-%   Take each subject's FIRST nEarly trials and LAST nLate trials,
-%   run the SAME time-bin logistic regression family (with RT + interactions),
-%   do model selection (by BIC/AIC deltas) separately for EARLY vs LATE,
-%   then PRINT two big figures:
-%     (1) EARLY: top4 models, ALL terms (including interactions)
-%     (2) LATE : top4 models, ALL terms (including interactions)
+%   Compare EARLY vs LATE trial periods in the confidence-volatility analysis
+%   using the same time-resolved regression pipeline.
+%
+% MAIN PROCEDURE:
+%   1) Compute predicted performance (p_perf_all) using subject-wise RPF fits.
+%   2) Compute time-resolved residual volatility (resVol_time) from motion
+%      energy across 40 normalized within-trial time bins.
+%   3) Split each subject's trials into EARLY and LATE sets based on complete
+%      cycles of coherence × volatility combinations.
+%
+% REGRESSION ANALYSIS:
+%   Linear regression predicting adjusted continuous confidence:
+%
+%       conf ~ perf + corr + vol + rt + interactions
+%
+%   Two levels of regression are performed separately for EARLY and LATE:
+%     (1) pooled regression across all subjects at each time bin
+%         (used for AIC/BIC model comparison)
+%     (2) per-subject regression at each time bin for selected models
+%         (used for plotting beta time courses).
+%
+% OPTIONAL VISUALIZATION:
+%   - Big figure for EARLY
+%   - Big figure for LATE
+%     showing coefficient time courses for all terms in the selected models.
+%
+% DEPENDENT VARIABLE:
+%   Continuous confidence in [0,1], slightly shrunk away from exact 0/1.
+%
+% KEY PREDICTORS:
+%   perf : predicted performance from RPF
+%   corr : correctness
+%   vol  : residual volatility from motion energy
+%   rt   : log-transformed response time
 %
 % NOTES:
-%   - This script computes p_perf_all (RPF) and resVol_time (motion_energy residual volatility)
-%     ONCE using all valid trials, then subsets trials for EARLY/LATE fits.
-%   - Figures are NOT saved to PDF. They are printed (shown) only.
-%
-% YOU CAN TUNE:
-%   nEarly = 100;   nLate = 100;   and SLOPE_WIN etc if you want later.
+%   - EARLY and LATE are defined within each subject using complete cycles.
+%   - Model selection is done separately for EARLY and LATE.
+%   - Pooled fits can include subject dummy regressors, but per-subject
+%     refits do not.
 
 clear; clc;
 
@@ -1065,7 +1091,6 @@ t = strrep(t, "corr", "C");
 t = strrep(t, "vol",  "V");
 t = strrep(t, "rt",   "R");
 
-% 保留 × 字符（tex 更能吃）
 t = strrep(t, "×", "×");
 
 s = char(t);
