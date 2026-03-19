@@ -1,4 +1,4 @@
-%% cycle_early_late.m
+%% cycle_early_late_cont_conf.m
 % PURPOSE:
 %   Compare EARLY vs LATE trial periods in the confidence-volatility analysis
 %   using the same time-resolved regression pipeline.
@@ -11,7 +11,7 @@
 %      cycles of coherence × volatility combinations.
 %
 % REGRESSION ANALYSIS:
-%   Logistic regression predicting binary confidence:
+%   Linear regression predicting adjusted continuous confidence:
 %
 %       conf ~ perf + corr + vol + rt + interactions
 %
@@ -22,12 +22,12 @@
 %         (used for plotting beta time courses).
 %
 % OPTIONAL VISUALIZATION:
-%   - Combined big figure:
-%       compares EARLY vs LATE coefficient time courses side by side
-%       for selected models and terms.
+%   - Big figure for EARLY
+%   - Big figure for LATE
+%     showing coefficient time courses for all terms in the selected models.
 %
 % DEPENDENT VARIABLE:
-%   Binary confidence obtained by thresholding continuous confidence.
+%   Continuous confidence in [0,1], slightly shrunk away from exact 0/1.
 %
 % KEY PREDICTORS:
 %   perf : predicted performance from RPF
@@ -44,10 +44,10 @@
 clear; clc;
 
 %% ===================== USER SETTINGS =====================
-nEarlyCycles = 10;   
-nLateCycles  = 10;   
+nEarlyCycles = 10;   % 前 n 个循环(cycle/循环)
+nLateCycles  = 10;   % 后 m 个循环(cycle/循环)
 
-
+% 你也可以想要不对称：比如前10个循环，后6个循环
 % nEarlyCycles = 10;
 % nLateCycles  = 6;
 
@@ -91,8 +91,16 @@ subjID_all    = allStruct.group(:);
 ME_cell_all   = allStruct.motion_energy;
 rt_all        = allStruct.rt(:);              % NEW
 
-valid = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ...
+valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ...
         ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
+    
+valid_conf = (confCont_all >= 0) & (confCont_all <= 1);
+
+valid = valid_basic & valid_conf;
+
+fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
+    sum(valid_basic & ~valid_conf), ...
+    100 * sum(valid_basic & ~valid_conf) / max(1, sum(valid_basic)));
 
 coh           = coh_all(valid);
 resp          = resp_all(valid);
@@ -106,8 +114,29 @@ rt            = rt_all(valid);
 nTrials = numel(coh);
 fprintf('Total valid trials: %d\n', nTrials);
 
-% Binary confidence
-Conf = double(confCont >= thConf);
+% ===================== Z-SCORE CONFIDENCE =====================
+% Conf = double(confCont >= thConf); %#ok<NASGU>  % 保留也可以，不影响
+
+ConfY = nan(size(confCont));
+subj_list = unique(subjID);
+nSubj = numel(subj_list);
+
+for iSub = 1:nSubj
+    s = subj_list(iSub);
+    idxS = subjID == s;
+
+    y = confCont(idxS);
+
+    % z-score within subject
+    mu = mean(y, 'omitnan');
+    sigma = std(y, 'omitnan');
+
+    if sigma == 0
+        ConfY(idxS) = zeros(size(y));
+    else
+        ConfY(idxS) = (y - mu) ./ sigma;
+    end
+end
 
 %% ===================== 2) Volatility condition index (RPF) =================
 vol_levels = unique(vol);
@@ -409,8 +438,15 @@ if DO_PLOT
         useSubjDummies, minN_pooled, minN_sub, ...
         FORCE_FIXED_MODELS, fixedTopIdx);
 
+    % 统一 y 轴范围：取 early+late 里更宽的那个
+    yLimShared = [-0.25 0.25];   % 你想要多小自己调
 
-    plot_bigfigure_4cols_M8M9_earlyLate(SelEarly, SelLate, t_norm, colSub, []);
+    fixedNames = modelNames(fixedTopIdx);
+
+    plot_bigfigure_allTerms(SelEarly, fixedNames, t_norm, colSub, 'EARLY', yLimShared);
+    plot_bigfigure_allTerms(SelLate,  fixedNames, t_norm, colSub, 'LATE',  yLimShared);
+
+
 end
 
 fprintf('\nDone.\n');
@@ -454,7 +490,7 @@ if FORCE_FIXED_MODELS
     top4Idx   = fixedTopIdx(:);
     top4Names = modelNames(top4Idx);
 else
-
+    % 你原来的 model selection（模型选择）逻辑不变
 end
 
 % score = mean([meanDeltaAIC(:), medDeltaAIC(:), meanDeltaBIC(:), medDeltaBIC(:)], 2, 'omitnan');
@@ -639,7 +675,7 @@ for m = 1:nModels
         if useSubjDummies, f = f + " + S2 + S3"; end
 
         try
-            g = fitglm(T, f, 'Distribution','binomial', 'Link','logit');
+            g = fitglm(T, f, 'Distribution','normal', 'Link','identity');
         catch
             continue;
         end
@@ -747,7 +783,7 @@ for ii = 1:numel(topIdx)
             if modelSpec(mIdx).use4, f = f + " + " + fourWayNames; end
 
             try
-                g = fitglm(T, f, 'Distribution','binomial', 'Link','logit');
+                g = fitglm(T, f, 'Distribution','normal', 'Link','identity');
             catch
                 continue;
             end
@@ -884,7 +920,7 @@ for r = 1:nRows
         'Rotation', 90, ...
         'HorizontalAlignment','center', ...
         'VerticalAlignment','middle', ...
-        'Interpreter','tex', ... 
+        'Interpreter','tex', ...     % ✅ 用 tex
         'Clipping','on');
 
 
@@ -936,10 +972,11 @@ for r = 1:nRows
 
         yline(ax,0,'k--','LineWidth',0.6,'HandleVisibility','off');
         xlim(ax,[0 1]);
+        % 若外部传了统一 y 轴，就强制用它；否则用本函数算出来的 yLimGlobal
         if exist('yLimGlobalForced','var') && ~isempty(yLimGlobalForced)
             ylim(ax, yLimGlobalForced);
         else
-            ylim(ax, yLimShared);  
+            ylim(ax, yLimShared);   % ✅ 用你刚算的 percentile range
         end
 
 
@@ -1059,490 +1096,7 @@ t = strrep(t, "corr", "C");
 t = strrep(t, "vol",  "V");
 t = strrep(t, "rt",   "R");
 
-% 保留 × 字符（tex 更能吃）
 t = strrep(t, "×", "×");
 
 s = char(t);
-end
-
-function plot_bigfigure_4cols_M8M9_earlyLate(SelEarly, SelLate, t_norm, colSub, outPDF, termList, figTitle)
-% 4 columns:
-%   1) M8 EARLY, 2) M8 LATE, 3) M9 EARLY, 4) M9 LATE
-%
-% termList (optional):
-%   a cellstr specifying which terms (rows) to plot.
-%   If empty/not provided -> plot union of all terms across panels (old behavior).
-%
-% figTitle (optional): sgtitle string
-
-if nargin < 5 || isempty(outPDF)
-    outPDF = 'BigFigure_M8M9_EarlyLate_AllTerms.pdf';
-end
-if nargin < 6
-    termList = [];
-end
-if nargin < 7
-    figTitle = 'EARLY vs LATE | M8 vs M9';
-end
-
-% ---- locate M8/M9 inside SelEarly/SelLate ----
-nameE = string({SelEarly.mName});
-nameL = string({SelLate.mName});
-
-iM8E = find(contains(nameE, "M8"), 1, 'first');
-iM9E = find(contains(nameE, "M9"), 1, 'first');
-iM8L = find(contains(nameL, "M8"), 1, 'first');
-iM9L = find(contains(nameL, "M9"), 1, 'first');
-
-if any(isempty([iM8E iM9E iM8L iM9L]))
-    error('Did not find M8/M9 in SelEarly/SelLate. Check mName strings.');
-end
-
-Panels(1).Sel = SelEarly(iM8E); Panels(1).title = 'M8 (2+3) EARLY';
-Panels(2).Sel = SelLate(iM8L);  Panels(2).title = 'M8 (2+3) LATE';
-Panels(3).Sel = SelEarly(iM9E); Panels(3).title = 'M9 (2+3+4) EARLY';
-Panels(4).Sel = SelLate(iM9L);  Panels(4).title = 'M9 (2+3+4) LATE';
-
-nCols = 4;
-nSubj = size(Panels(1).Sel.beta_sub,1);
-x     = t_norm(:)';
-
-% ---- union of terms across all 4 panels ----
-allTerms = {};
-for c = 1:nCols
-    allTerms = [allTerms, Panels(c).Sel.termLabels]; %#ok<AGROW>
-end
-allTerms = unique(allTerms, 'stable');
-
-% ---- if user provides termList, restrict ----
-if ~isempty(termList)
-    % keep stable order based on the global union (so rows consistent across groups)
-    keep = ismember(allTerms, termList);
-    allTerms = allTerms(keep);
-end
-
-% ---- drop rows that are missing in ALL 4 panels (keep partial rows) ----
-keep2 = false(size(allTerms));
-for r = 1:numel(allTerms)
-    term = allTerms{r};
-    hasAny = false;
-    for c = 1:nCols
-        if any(strcmp(Panels(c).Sel.termLabels, term))
-            hasAny = true; break;
-        end
-    end
-    keep2(r) = hasAny;
-end
-allTerms = allTerms(keep2);
-
-nRows = numel(allTerms);
-if nRows == 0
-    warning('No terms to plot for this request. Skipping: %s', outPDF);
-    return;
-end
-
-% ---- compute y-lims per (model, term) using EARLY+LATE pooled ----
-yLim_M8 = cell(nRows,1);
-yLim_M9 = cell(nRows,1);
-for r = 1:nRows
-    term = allTerms{r};
-    yLim_M8{r} = local_term_ylim_twoPanels(Panels(1).Sel, Panels(2).Sel, term);
-    yLim_M9{r} = local_term_ylim_twoPanels(Panels(3).Sel, Panels(4).Sel, term);
-end
-
-% ===================== FIG LAYOUT =====================
-tileSize = 130; 
-gapX     = 20;
-gapY     = 14;
-labelW   = 90;
-
-outerL = 40;
-outerR = 30;
-outerT = 35;
-outerB = 100;
-
-figW = outerL + labelW + nCols*tileSize + (nCols-1)*gapX + outerR;
-figH = outerT + nRows*tileSize + (nRows-1)*gapY + outerB;
-
-fig = figure('Color','w','Units','points','Position',[60 60 figW figH]);
-set(fig, 'Name', 'EARLY/LATE combined: M8 vs M9');
-
-pt2nx = @(pt) pt / figW;
-pt2ny = @(pt) pt / figH;
-
-L = pt2nx(outerL);
-R = pt2nx(outerR);
-T = pt2ny(outerT);
-B = pt2ny(outerB);
-
-gapXNorm   = pt2nx(gapX);
-gapYNorm   = pt2ny(gapY);
-labelWNorm = pt2nx(labelW);
-tileWNorm  = pt2nx(tileSize);
-tileHNorm  = pt2ny(tileSize);
-
-usedW = labelWNorm + nCols*tileWNorm + (nCols-1)*gapXNorm;
-usedH = nRows*tileHNorm + (nRows-1)*gapYNorm;
-
-x0   = L + ((1 - L - R) - usedW)/2;
-yTop = 1 - T - ((1 - T - B) - usedH)/2;
-
-% ---- style ----
-fontPanel = 9;
-lw_sub    = 0.55;
-lw_mean   = 1.00;
-alphaSub  = 0.12;
-alphaMean = 0.08;
-
-lastAxPerCol = gobjects(1,nCols);
-
-% ===================== DRAW =====================
-for r = 1:nRows
-    yPos = yTop - r*tileHNorm - (r-1)*gapYNorm;
-
-    % left label
-    axLab = axes('Parent',fig,'Units','normalized','Position',[x0, yPos, labelWNorm, tileHNorm]);
-    axis(axLab,'off');
-    text(axLab, 0.50, 0.50, term_to_tex_compact(allTerms{r}), ...
-        'FontSize', 10, 'FontWeight','bold', ...
-        'Rotation', 90, ...
-        'HorizontalAlignment','center', ...
-        'VerticalAlignment','middle', ...
-        'Interpreter','tex', ...
-        'Clipping','on');
-
-    for c = 1:nCols
-        % ===== SPECIAL CASE: use the empty M8 tiles in the 4-way row for legend =====
-        isLastRow = (r == nRows);
-        termIs4way = contains(string(allTerms{r}), 'b_{perf×vol×corr×rt}'); % 你的四阶项label
-        m8_has = any(strcmp(Panels(1).Sel.termLabels, allTerms{r})) || any(strcmp(Panels(2).Sel.termLabels, allTerms{r}));
-        m9_has = any(strcmp(Panels(3).Sel.termLabels, allTerms{r})) || any(strcmp(Panels(4).Sel.termLabels, allTerms{r}));
-
-        if isLastRow && termIs4way && ~m8_has && m9_has
-            xPos1 = x0 + labelWNorm;        
-            yPos1 = yPos;               
-            legW  = 2*tileWNorm + gapXNorm;    
-            legH  = tileHNorm;
-
-            axLeg = axes('Parent',fig,'Units','normalized','Position',[xPos1, yPos1, legW, legH]);
-            axis(axLeg,'off'); hold(axLeg,'on');
-
-            hLeg = gobjects(nSubj+1,1);
-            legText = cell(nSubj+1,1);
-            for s = 1:nSubj
-                hLeg(s) = plot(axLeg, nan, nan, '-', 'LineWidth', 2.5, 'Color', colSub(s,:));
-                legText{s} = sprintf('Subject %d', s);
-            end
-            hLeg(nSubj+1) = plot(axLeg, nan, nan, 'k-', 'LineWidth', 3.0);
-            legText{nSubj+1} = 'Mean';
-
-            lgd = legend(axLeg, hLeg, legText, 'Orientation','vertical', 'Location','northwest');
-            lgd.Box = 'off';
-            lgd.FontSize = 11;
-
-            if c <= 2
-                continue;
-            end
-        end
-        xPos = x0 + labelWNorm + (c-1)*(tileWNorm + gapXNorm);
-        ax = axes('Parent',fig,'Units','normalized','Position',[xPos, yPos, tileWNorm, tileHNorm]);
-        hold(ax,'on'); grid(ax,'on'); box(ax,'off');
-
-        if r == 1
-            ttl = strrep(Panels(c).title,'_','\_');
-            title(ax, ttl, 'Interpreter','tex','FontSize',11,'FontWeight','bold');
-        end
-
-        xlim(ax,[0 1]);
-        xticks(ax,0:0.2:1);
-        set(ax,'FontSize',fontPanel,'LineWidth',0.8);
-        yline(ax,0,'k--','LineWidth',0.6,'HandleVisibility','off');
-
-        if r < nRows
-            set(ax,'XTickLabel',[]);
-        end
-        lastAxPerCol(c) = ax;
-
-        termListHere = Panels(c).Sel.termLabels;
-        tt = find(strcmp(termListHere, allTerms{r}), 1, 'first');
-        if isempty(tt)
-            % should be rare because we filtered all-missing rows,
-            % but can still happen per-panel
-            text(ax, 0.5, 0.5, '—', 'Units','normalized', ...
-                'HorizontalAlignment','center','VerticalAlignment','middle', ...
-                'FontSize', 16, 'Color', [0.35 0.35 0.35]);
-            if c <= 2, ylim(ax, yLim_M8{r}); else, ylim(ax, yLim_M9{r}); end
-            continue;
-        end
-
-        beta_sub = Panels(c).Sel.beta_sub(:,:,tt);
-        se_sub   = Panels(c).Sel.se_sub(:,:,tt);
-
-        for s = 1:nSubj
-            yv = squeeze(beta_sub(s,:));
-            ev = squeeze(se_sub(s,:));
-            ok = ~isnan(yv) & ~isnan(ev);
-            if sum(ok) >= 2
-                xx = x(ok); yy = yv(ok); ee = ev(ok);
-                fill(ax, [xx fliplr(xx)], [yy-ee fliplr(yy+ee)], colSub(s,:), ...
-                    'EdgeColor','none','FaceAlpha',alphaSub,'HandleVisibility','off');
-            end
-            plot(ax, x, yv, '-', 'Color', colSub(s,:), 'LineWidth', lw_sub, 'HandleVisibility','off');
-        end
-
-        yMean = mean(beta_sub,1,'omitnan');
-        ySEM  = std(beta_sub,0,1,'omitnan') ./ sqrt(nSubj);
-        okm = ~isnan(yMean) & ~isnan(ySEM);
-        if sum(okm) >= 2
-            xx = x(okm); ym = yMean(okm); es = ySEM(okm);
-            fill(ax, [xx fliplr(xx)], [ym-es fliplr(ym+es)], [0 0 0], ...
-                'EdgeColor','none','FaceAlpha',alphaMean,'HandleVisibility','off');
-        end
-        plot(ax, x, yMean, 'k-', 'LineWidth', lw_mean, 'HandleVisibility','off');
-
-        if c <= 2
-            ylim(ax, yLim_M8{r});
-        else
-            ylim(ax, yLim_M9{r});
-        end
-    end
-end
-
-for c = 1:nCols
-    ax = lastAxPerCol(c);
-    if ~isempty(ax) && isgraphics(ax)
-        xlabel(ax,'Normalized time (0--1)','Interpreter','latex','FontSize',10);
-    end
-end
-
-
-% export
-set(fig,'Renderer','painters');
-set(fig,'PaperUnits','points');
-set(fig,'PaperSize',[figW figH]);
-set(fig,'PaperPosition',[0 0 figW figH]);
-set(fig,'PaperPositionMode','manual');
-set(fig,'PaperOrientation','portrait');
-
-print(fig, outPDF, '-dpdf', '-painters');
-fprintf('✓ Saved: %s\n', outPDF);
-
-end
-
-% -------- helper: compute y-lim for one term using two panels pooled (beta ± se) --------
-function yLim = local_term_ylim_twoPanels(SelA, SelB, termLabel)
-% termLabel is from allTerms (matches Sel.termLabels entries)
-
-vals = [];
-
-for S = {SelA, SelB}
-    Sel = S{1};
-    tt = find(strcmp(Sel.termLabels, termLabel), 1, 'first');
-    if isempty(tt), continue; end
-
-    b = Sel.beta_sub(:,:,tt);
-    e = Sel.se_sub(:,:,tt);
-    vals = [vals; b(:); b(:)+e(:); b(:)-e(:)]; %#ok<AGROW>
-end
-
-vals = vals(~isnan(vals));
-if isempty(vals)
-    yLim = [-1 1];
-    return;
-end
-
-% percentile trim to avoid one crazy spike blowing up the panel
-lo = prctile(vals, 2);
-hi = prctile(vals, 98);
-
-if abs(hi-lo) < 1e-6
-    lo = lo - 1;
-    hi = hi + 1;
-end
-
-pad = 0.10 * (hi - lo + eps);
-yLim = [lo-pad, hi+pad];
-end
-
-function plot_M8M9_earlyLate_splitByFactor(SelEarly, SelLate, t_norm, colSub, prefix)
-% Make 4 PDFs:
-%   - volatility terms
-%   - perf terms
-%   - corr terms
-%   - rt terms
-%
-% Rule: a term appears in any group that matches its string (so interactions duplicate across groups).
-
-if nargin < 5 || isempty(prefix)
-    prefix = 'BigFigure_M8M9_EarlyLate';
-end
-
-% collect union terms
-nameE = string({SelEarly.mName});
-nameL = string({SelLate.mName});
-iM8E = find(contains(nameE,"M8"),1,'first');
-iM9E = find(contains(nameE,"M9"),1,'first');
-iM8L = find(contains(nameL,"M8"),1,'first');
-iM9L = find(contains(nameL,"M9"),1,'first');
-if any(isempty([iM8E iM9E iM8L iM9L]))
-    error('Missing M8/M9 in SelEarly/SelLate');
-end
-
-Panels = {SelEarly(iM8E), SelLate(iM8L), SelEarly(iM9E), SelLate(iM9L)};
-allTerms = {};
-for i=1:4
-    allTerms = [allTerms, Panels{i}.termLabels]; %#ok<AGROW>
-end
-allTerms = unique(allTerms,'stable');
-
-% build 4 groups
-termVol  = allTerms(cellfun(@(t) local_hasFactor(t,'vol'),  allTerms));
-termPerf = allTerms(cellfun(@(t) local_hasFactor(t,'perf'), allTerms));
-termCorr = allTerms(cellfun(@(t) local_hasFactor(t,'corr'), allTerms));
-termRT   = allTerms(cellfun(@(t) local_hasFactor(t,'rt'),   allTerms));
-
-% export each
-plot_bigfigure_4cols_M8M9_earlyLate( ...
-    SelEarly, SelLate, t_norm, colSub, ...
-    sprintf('%s_VOL.pdf', prefix), termVol, ...
-    'EARLY vs LATE | M8 vs M9 | Terms containing VOL');
-
-plot_bigfigure_4cols_M8M9_earlyLate( ...
-    SelEarly, SelLate, t_norm, colSub, ...
-    sprintf('%s_PERF.pdf', prefix), termPerf, ...
-    'EARLY vs LATE | M8 vs M9 | Terms containing PERF');
-
-plot_bigfigure_4cols_M8M9_earlyLate( ...
-    SelEarly, SelLate, t_norm, colSub, ...
-    sprintf('%s_CORR.pdf', prefix), termCorr, ...
-    'EARLY vs LATE | M8 vs M9 | Terms containing CORR');
-
-plot_bigfigure_4cols_M8M9_earlyLate( ...
-    SelEarly, SelLate, t_norm, colSub, ...
-    sprintf('%s_RT.pdf', prefix), termRT, ...
-    'EARLY vs LATE | M8 vs M9 | Terms containing RT');
-
-end
-
-function tf = local_hasFactor(termLabel, key)
-% robust string test for membership
-% termLabel examples: 'b_{perf×vol}' or 'b_{perf×vol×corr×rt}' etc.
-t = lower(string(termLabel));
-
-% drop intercept
-if contains(t,"intercept")
-    tf = false;
-    return;
-end
-
-% normalize
-t = erase(t, {'{','}','_','\',' ', '$'});
-
-% match keys
-tf = contains(t, lower(key));
-end
-
-function resVol_time = compute_resVol_time_split(motion_energy, subjID, nBins, winLen, tol, idxUse)
-% Compute residual volatility using only the trials in idxUse
-% Other trials remain NaN
-
-nTrials = numel(motion_energy);
-subj_list = unique(subjID);
-nSubj = numel(subj_list);
-
-evidence_strength   = cell(nTrials, 1);
-volatility_strength = cell(nTrials, 1);
-
-for tr = 1:nTrials
-    frames = motion_energy{tr};
-    trace  = frames(:)';
-
-    last_nz = find(abs(trace) > tol, 1, 'last');
-    if isempty(last_nz)
-        evidence_strength{tr}   = [];
-        volatility_strength{tr} = [];
-        continue;
-    end
-
-    trace_eff = trace(1:last_nz);
-    nFrames   = numel(trace_eff);
-
-    if nFrames < winLen
-        evidence_strength{tr}   = [];
-        volatility_strength{tr} = [];
-        continue;
-    end
-
-    nWin  = nFrames - winLen + 1;
-    m_win = nan(1, nWin);
-    s_win = nan(1, nWin);
-
-    for w = 1:nWin
-        seg      = trace_eff(w : w + winLen - 1);
-        m_win(w) = mean(seg);
-        s_win(w) = std(seg);
-    end
-
-    evidence_strength{tr}   = m_win;
-    volatility_strength{tr} = s_win;
-end
-
-t_norm = linspace(0, 1, nBins);
-
-MEAN_norm = nan(nTrials, nBins);
-STD_norm  = nan(nTrials, nBins);
-
-for tr = 1:nTrials
-    mu_tr = evidence_strength{tr};
-    sd_tr = volatility_strength{tr};
-    if isempty(mu_tr) || isempty(sd_tr), continue; end
-
-    nWin_tr = min(numel(mu_tr), numel(sd_tr));
-    mu_tr   = mu_tr(1:nWin_tr);
-    sd_tr   = sd_tr(1:nWin_tr);
-
-    t_orig = linspace(0, 1, nWin_tr);
-    MEAN_norm(tr,:) = interp1(t_orig, mu_tr, t_norm, 'linear');
-    STD_norm(tr,:)  = interp1(t_orig, sd_tr, t_norm, 'linear');
-end
-
-resVol_mat = nan(size(STD_norm));
-
-for b = 1:nBins
-    y  = STD_norm(:, b);
-    x1 = abs(MEAN_norm(:, b));
-
-    mask_b = idxUse & ~isnan(y) & ~isnan(x1);
-    if sum(mask_b) < 3
-        continue;
-    end
-
-    Xb    = [ones(sum(mask_b),1), x1(mask_b)];
-    y_use = y(mask_b);
-
-    beta  = Xb \ y_use;
-    resid = y_use - Xb * beta;
-
-    tmpv = nan(size(y));
-    tmpv(mask_b) = resid;
-    resVol_mat(:, b) = tmpv;
-end
-
-% per-subject z-score within the chosen split only
-resVol_time = nan(size(resVol_mat));
-
-for iSub = 1:nSubj
-    s = subj_list(iSub);
-    idxS = (subjID == s) & idxUse;
-
-    vals = resVol_mat(idxS, :);
-    mu_s = mean(vals(:), 'omitnan');
-    sd_s = std(vals(:),  'omitnan');
-
-    if isnan(sd_s) || sd_s < 1e-12
-        continue;
-    end
-
-    resVol_time(idxS, :) = (vals - mu_s) ./ sd_s;
-end
 end

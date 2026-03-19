@@ -103,20 +103,30 @@ subj_list = unique(subjID);
 nSubj     = numel(subj_list);
 
 %% ===================== 1.5 Transform confidence =====================
-conf_adj = nan(size(confCont));
+
+% ===================== Z-SCORE CONFIDENCE =====================
+% Conf = double(confCont >= thConf); %#ok<NASGU>  % 保留也可以，不影响
+
+ConfY = nan(size(confCont));
+subj_list = unique(subjID);
+nSubj = numel(subj_list);
 
 for iSub = 1:nSubj
     s = subj_list(iSub);
     idxS = subjID == s;
 
     y = confCont(idxS);
-    N = sum(idxS);
-    y2 = (y*(N-1) + 0.5) / N;   % shrink away from 0/1
-    conf_adj(idxS) = y2;
-end
 
-zConf = log(conf_adj ./ (1 - conf_adj));
-ConfY = zConf;
+    % z-score within subject
+    mu = mean(y, 'omitnan');
+    sigma = std(y, 'omitnan');
+
+    if sigma == 0
+        ConfY(idxS) = zeros(size(y));
+    else
+        ConfY(idxS) = (y - mu) ./ sigma;
+    end
+end
 
 %% ===================== 2. Map volatility to condition index =====================
 vol_levels = unique(vol);
