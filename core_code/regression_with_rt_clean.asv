@@ -99,13 +99,12 @@ rt            = rt_all(valid);
 nTrials = numel(coh);
 fprintf('Total valid trials: %d\n', nTrials);
 
-%% ===================== 1.5 Transform confidence & RT =====================
+%% ===================== 1.5 Transform confidence &  =====================
 
 % ===================== Z-SCORE CONFIDENCE =====================
 % Conf = double(confCont >= thConf); %#ok<NASGU>  % 保留也可以，不影响
 
 ConfY = nan(size(confCont));
-rtX = nan(size(rt));
 subj_list = unique(subjID);
 nSubj = numel(subj_list);
 
@@ -115,7 +114,7 @@ for iSub = 1:nSubj
 
     y = confCont(idxS);
 
-    % z-score confidence within subject
+    % z-score within subject
     mu = mean(y, 'omitnan');
     sigma = std(y, 'omitnan');
 
@@ -124,10 +123,6 @@ for iSub = 1:nSubj
     else
         ConfY(idxS) = (y - mu) ./ sigma;
     end
-
-    % z-score RT within subject 
-    rt_sub = rt(idxS);
-    rtX(idxS) = zscore(log(rt_sub));
 end
 
 %% ===================== 2. Map volatility to condition index =====================
@@ -259,10 +254,9 @@ Fp_all = (p_clip - mean(p_clip,'omitnan')) ./ std(p_clip,'omitnan');
 
 Cz_all = Correct - mean(Correct,'omitnan');
 
-% commented out because we handle RT z-scoring above with confidence
-%rt_eps  = 1e-6;
-%rt_ref  = log(rt + rt_eps);
-%RTz_all = (rt_ref - mean(rt_ref,'omitnan')) ./ std(rt_ref,'omitnan');
+rt_eps  = 1e-6;
+rt_ref  = log(rt + rt_eps);
+RTz_all = (rt_ref - mean(rt_ref,'omitnan')) ./ std(rt_ref,'omitnan');
 
 %% ===================== 6. Define model family =====================
 [~, K] = size(resVol_time);
@@ -377,17 +371,15 @@ for m = 1:nModels
         Vk = resVol_time(:,k);
 
         mask = ~isnan(Vk) & ~isnan(ConfY) & ~isnan(Correct) & ...
-               ~isnan(Fp_all) & ~isnan(subjID) & ~isnan(rtX);
+               ~isnan(Fp_all) & ~isnan(subjID) & ~isnan(RTz_all);
 
         if sum(mask) < minN, continue; end
 
         y    = ConfY(mask);
         P    = Fp_all(mask);
-       % C = categorical(Correct(mask));
         C    = Cz_all(mask);
         Vraw = Vk(mask);
-        R = rtX(mask);
-        %R    = RTz_all(mask);
+        R    = RTz_all(mask);
         sID  = subjID(mask);
 
         sv = std(Vraw);
