@@ -49,7 +49,7 @@
 clear; clc; close all;
 
 %% ===================== PLOT SWITCH =====================
-DO_PLOT_BIG_FIGURE = false;
+DO_PLOT_BIG_FIGURE = true;
 DO_PLOT_QUARTER_BAR = false;
 DO_PLOT_AICBIC_DOTS  = true;
 
@@ -143,8 +143,10 @@ cond(vol == max(vol_levels)) = 2;
 %% ===================== 3. Subject × volatility × coherence mean accuracy =====================
 p_perf_all = nan(nTrials,1);
 
+% get unique values of condition (low or high volatility) x coherence
 cond_list = unique(cond(~isnan(cond)));
 coh_list  = unique(coh(~isnan(coh)));
+total_combinations = length(cond_list) * length(coh_list);
 
 for iSub = 1:nSubj
     thisSub = subj_list(iSub);
@@ -152,10 +154,10 @@ for iSub = 1:nSubj
     for c = cond_list(:)'
         for h = coh_list(:)'
             mask = (subjID == thisSub) & (cond == c) & (coh == h);
+            nTrials_sub = sum(mask);
 
             if any(mask)
-                mean_acc = mean(Correct(mask), 'omitnan');
-                p_perf_all(mask) = mean_acc;
+                p_perf_all(mask) = mean(Correct(mask), 'omitnan');
             end
         end
     end
@@ -163,6 +165,64 @@ end
 
 fprintf('Finished subject × volatility × coherence mean accuracy. Valid proportion: %.3f\n', ...
     mean(~isnan(p_perf_all)));
+
+%% compute accuracy as a function of trial in the decision task %%%%%%%%%%%
+
+% initialize variables to store performance estimates
+p_perf_online = zeros(nTrials, 1);
+p_perf_online(:) = 0.5;
+
+% initialize counters for keeping track of trials: 12 combinations total
+% column1: cond_list == cond_list(1) & coh_list == coh_list(1)
+% column2: cond_list == cond_list(1) & coh_list == coh_list(2)
+% .... through coh_list == coh_list(6)
+% column7: cond_list == cond_list(2) & coh_list==coh_list(1)
+% and so on...
+
+combination_counter = zeros(nSubj, total_combinations);
+combination_performance = combination_counter;
+combination_counter(:) = 2;      % 2 pseudo-trials to anchor at chance
+combination_performance(:) = 1;  % 1 correct out of those 2 → 0.5
+endTrial = zeros(nSubj, 1);
+
+% compute "online" performance estimation
+for iSub = 1:nSubj
+    thisSub = subj_list(iSub);
+    mask = (subjID == thisSub);
+    nTrials_sub = sum(mask);
+
+    if iSub > 1
+        endTrial(iSub) = endTrial(iSub-1) + nTrials_sub;
+        startTrial = endTrial(iSub-1) + 1;
+    else
+        endTrial(iSub) = nTrials_sub;
+        startTrial = 1;
+    end
+
+    for tr = startTrial:endTrial(iSub)
+
+        % (1) get cond, coh, correct values on this trial
+        this_cond = cond(tr);
+        this_coh  = coh(tr);
+        this_correct = Correct(tr);
+
+        % (2) find the index of this trial's cond and coh in their respective lists
+        cond_idx = find(cond_list == this_cond, 1);
+        coh_idx  = find(coh_list  == this_coh,  1);
+
+        % compute the column index into combination_counter:
+        % cond block of 6 + position within that block
+        combo_idx = (cond_idx - 1) * length(coh_list) + coh_idx;
+
+        % (3) increment the counter for this subject & combination
+        combination_counter(iSub, combo_idx) = combination_counter(iSub, combo_idx) + 1;
+
+        % (4) update performance estimate for this combination
+          combination_performance(iSub, combo_idx) = combination_performance(iSub, combo_idx) + this_correct;
+          p_perf_online(tr) = combination_performance(iSub, combo_idx) / combination_counter(iSub, combo_idx);
+    end
+end
+
 
 %% ===================== 4. Compute residual volatility from motion_energy =====================
 winLen = 10;
@@ -252,17 +312,56 @@ resVol_time = (resVol_mat - mu_all) ./ sd_all;
 
 fprintf('Residual volatility matrix: %d trials x %d bins\n', size(resVol_time,1), size(resVol_time,2));
 
-%% ===================== 5. Build predictors =====================
+%% ===================== 5. Build & plot predictors =====================
 eps0   = 1e-4;
-p_clip = min(max(p_perf_all, eps0), 1-eps0);
+p_clip = min(max(p_perf_all, eps0), 1-eps0); % question for megan: what is happening here? and why?
 Fp_all = (p_clip - mean(p_clip,'omitnan')) ./ std(p_clip,'omitnan');
 
 Cz_all = Correct - mean(Correct,'omitnan');
 
-% commented out because we handle RT z-scoring above with confidence
-%rt_eps  = 1e-6;
-%rt_ref  = log(rt + rt_eps);
-%RTz_all = (rt_ref - mean(rt_ref,'omitnan')) ./ std(rt_ref,'omitnan');
+% plot predictors & outcome variable
+tiledlayout;
+% plot raw confidence
+nexttile;
+histogram(confCont);
+title('raw confidence (not used)')
+% plot z-scored confidence
+nexttile;
+histogram(ConfY);
+title('confidence z-scored within subject');
+% plot mysterious performance term
+nexttile;
+histogram(Fp_all)
+title('Fp all')
+% plot other performance term
+nexttile;
+histogram(p_perf_all);
+title('p perf all');
+% plot "online" performance term
+nexttile;
+histogram(p_perf_online);
+title('p perf online');
+% plot correctness
+nexttile;
+histogram(Correct);
+title('correctness');
+% plot volatility
+nexttile;
+histogram(resVol_time);
+title('volatility (resVoltime)')
+% plot raw RT
+nexttile;
+histogram(rt);
+title('raw RT (NOT USED)');
+% plot log RT
+nexttile;
+histogram(log(rt));
+title('log RT (NOT USED)')
+% plot zlog RT
+nexttile;
+histogram(rtX);
+title('zlogRT (within subject)')
+
 
 %% ===================== 6. Define model family =====================
 [~, K] = size(resVol_time);
@@ -339,7 +438,6 @@ nModels = numel(modelNames);
 AIC_mat  = nan(K, nModels);
 BIC_mat  = nan(K, nModels);
 Nobs_mat = nan(K, nModels);
-g_mat = nan(K, nModels);
 
 Models = struct();
 Fitted_models = struct();
@@ -372,6 +470,7 @@ for m = 1:nModels
 
     nTerms = numel(labels);
     betas  = nan(K, nTerms);
+    beta_ses = betas;
 
     for k = 1:K
         Vk = resVol_time(:,k);
@@ -382,9 +481,12 @@ for m = 1:nModels
         if sum(mask) < minN, continue; end
 
         y    = ConfY(mask);
-        P    = Fp_all(mask);
+        %P    = Fp_all(mask);
+        %P = p_perf_all(mask);
        % C = categorical(Correct(mask));
-        C    = Cz_all(mask);
+        %C    = Cz_all(mask);
+        P = p_perf_online(mask);
+        C = Correct(mask);
         Vraw = Vk(mask);
         R = rtX(mask);
         %R    = RTz_all(mask);
@@ -448,6 +550,7 @@ for m = 1:nModels
             hit = find(coefNames == nm, 1, 'first');
             if ~isempty(hit)
                 betas(k,tt) = coefEst(hit);
+                beta_ses(k, tt)   = coefSE(hit);   
             end
         end
     end
@@ -456,6 +559,7 @@ for m = 1:nModels
     Models(m).labels       = labels;
     Models(m).coefVarNames = coefVarNames;
     Models(m).betas        = betas;
+    Models(m).beta_ses          = beta_ses;  
 end
 
 %% ===================== 8. Rank models by composite AIC/BIC score =====================
