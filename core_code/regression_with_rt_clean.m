@@ -50,12 +50,12 @@ clear; clc; close all;
 
 %% ===================== PLOT SWITCH =====================
 DO_PLOT_BIG_FIGURE = true;
-DO_PLOT_QUARTER_BAR = false;
-DO_PLOT_AICBIC_DOTS  = true;
+DO_PLOT_QUARTER_BAR = true;
+DO_PLOT_AICBIC_DOTS  = false;
 
 QUARTER_MODEL_MODE = 'manual';      % 'top1' or 'manual'
-QUARTER_MODEL_NAME = 'M1_2way_PxC';   % only used if QUARTER_MODEL_MODE = 'manual'
-QUARTER_TERM_NAME  = 'rt';       % e.g. 'vol','rt','PxV','VxC','RxV','PxVxC'
+QUARTER_MODEL_NAME = 'M7_all2';   % only used if QUARTER_MODEL_MODE = 'manual'
+QUARTER_TERM_NAME  = 'vol';       % e.g. 'vol','rt','PxV','VxC','RxV','PxVxC'
 
 %% ===================== 0. Add toolboxes =====================
 addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/RPF-main'));
@@ -102,7 +102,7 @@ fprintf('Total valid trials: %d\n', nTrials);
 %% ===================== 1.5 Transform confidence & RT =====================
 
 % ===================== Z-SCORE CONFIDENCE =====================
-% Conf = double(confCont >= thConf); %#ok<NASGU>  % 保留也可以，不影响
+% Conf = double(confCont >= thConf); %#ok<NASGU> 
 
 ConfY = nan(size(confCont));
 rtX = nan(size(rt));
@@ -544,7 +544,7 @@ for m = 1:nModels
 
         coefNames = string(g.CoefficientNames);
         coefEst   = g.Coefficients.Estimate;
-
+        coefSE = g.Coefficients.SE;
         for tt = 1:numel(coefVarNames)
             nm = coefVarNames(tt);
             hit = find(coefNames == nm, 1, 'first');
@@ -672,7 +672,7 @@ if DO_PLOT_AICBIC_DOTS
 
     legend([hAIC, hBIC], {'Min AIC','Min BIC'}, 'Location','eastoutside');
 
-    outPDF_ab = 'AIC_BIC_bestModel_dots.pdf';
+    outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
     set(figAB,'Renderer','painters');
     print(figAB, outPDF_ab, '-dpdf', '-painters');
     fprintf('✓ Saved AIC/BIC dot plot: %s\n', outPDF_ab);
@@ -713,7 +713,7 @@ if DO_PLOT_QUARTER_BAR
         Vq_raw = mean(resVol_time(:, bins_here), 2, 'omitnan');
 
         mask = ~isnan(Vq_raw) & ~isnan(ConfY) & ~isnan(Correct) & ...
-               ~isnan(Fp_all) & ~isnan(subjID) & ~isnan(RTz_all);
+               ~isnan(p_perf_online) & ~isnan(subjID) & ~isnan(rtX);
 
         if sum(mask) < minN
             fprintf('Quarter %s skipped: not enough trials.\n', qLabels{q});
@@ -721,10 +721,13 @@ if DO_PLOT_QUARTER_BAR
         end
 
         y    = ConfY(mask);
-        P    = Fp_all(mask);
-        C    = Cz_all(mask);
+        % P    = Fp_all(mask);
+        P = p_perf_online(mask);
+        % C    = Cz_all(mask);
+        C = Correct(mask);
         Vraw = Vq_raw(mask);
-        R    = RTz_all(mask);
+        % R    = RTz_all(mask);
+        R = rtX(mask);
         sID  = subjID(mask);
 
         sv = std(Vraw);
@@ -819,7 +822,8 @@ if DO_PLOT_QUARTER_BAR
     ylim([yBot - 0.12*yrng, yTop + 0.18*yrng]);
     box off;
 
-    outPDF_q = sprintf('QuarterBar_%s_%s.pdf', qModelName, QUARTER_TERM_NAME);
+    outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
+    outPDF_q = '../figure/QuarterBar_%s_%s.pdf';
     set(figQ,'Renderer','painters');
     print(figQ, outPDF_q, '-dpdf', '-painters');
     fprintf('✓ Saved quarter bar plot: %s\n', outPDF_q);
@@ -889,8 +893,10 @@ for ii = 1:numel(modelIdxToRefit)
             if sum(mask) < minN_sub, continue; end
 
             y    = ConfY(mask);
-            P    = Fp_all(mask);
-            C    = Cz_all(mask);
+            % P    = Fp_all(mask);
+            P = p_perf_online(mask);
+            % C    = Cz_all(mask);
+            C = Correct(mask);
             Vraw = Vk(mask);
 
             sv = std(Vraw);
@@ -952,6 +958,8 @@ for ii = 1:numel(modelIdxToRefit)
     Sel(ii).beta_sub   = beta_sub;
     Sel(ii).se_sub     = se_sub;
     Sel(ii).p_sub      = p_sub;
+    Sel(ii).beta_pool = Models(m).betas;      % K x nTerms
+    Sel(ii).se_pool   = Models(m).beta_ses;   % K x nTerms
 end
 
 %% ===================== 10. One big figure =====================
@@ -1181,17 +1189,30 @@ for r = 1:nRows
                 'HandleVisibility','off');
         end
 
-        % mean ± SEM
-        yMean = mean(beta_sub,1,'omitnan');
-        ySEM  = std(beta_sub,0,1,'omitnan') ./ sqrt(nSubj);
+        % mean ± SEM (original ver. average of three subjects 
+        % and SE here is the difference between three subjects)
+        % yMean = mean(beta_sub,1,'omitnan');
+        % ySEM  = std(beta_sub,0,1,'omitnan') ./ sqrt(nSubj);
+        % 
+        % okm = ~isnan(yMean) & ~isnan(ySEM);
+        % if sum(okm) >= 2
+        %     xx = x(okm); ym = yMean(okm); es = ySEM(okm);
+        %     fill(ax, [xx fliplr(xx)], [ym-es fliplr(ym+es)], [0 0 0], ...
+        %         'EdgeColor','none', 'FaceAlpha',alphaMean, 'HandleVisibility','off');
+        % end
+        % plot(ax, x, yMean, 'k-', 'LineWidth', lw_mean, 'HandleVisibility','off');
 
-        okm = ~isnan(yMean) & ~isnan(ySEM);
+        % pooled line ± pooled SE
+        yPool = Sel(c).beta_pool(:,tt)';
+        ePool = Sel(c).se_pool(:,tt)';
+        
+        okm = ~isnan(yPool) & ~isnan(ePool);
         if sum(okm) >= 2
-            xx = x(okm); ym = yMean(okm); es = ySEM(okm);
+            xx = x(okm); ym = yPool(okm); es = ePool(okm);
             fill(ax, [xx fliplr(xx)], [ym-es fliplr(ym+es)], [0 0 0], ...
                 'EdgeColor','none', 'FaceAlpha',alphaMean, 'HandleVisibility','off');
         end
-        plot(ax, x, yMean, 'k-', 'LineWidth', lw_mean, 'HandleVisibility','off');
+        plot(ax, x, yPool, 'k-', 'LineWidth', lw_mean, 'HandleVisibility','off');
 
         ylim(ax, yLimByRow{r});
     end
