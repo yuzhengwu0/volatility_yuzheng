@@ -165,8 +165,8 @@ p_perf_online = zeros(nTrials, 1);
 p_perf_online(:) = 0.5;
 
 early_perf = nan(nTrials, 1); 
-% NOTE: early and late is set as "TRIALS" right now,
-% if we want to use the cycle thing, we have to change this!!!
+% NOTE: early and late is set as "trials" right now,
+% 
 
 % initialize counters for keeping track of trials: 12 combinations total
 % column1: cond_list == cond_list(1) & coh_list == coh_list(1)
@@ -502,7 +502,7 @@ end
 
 % ---- per-subject per-bin refit ----
 Sel = refit_models_perSubjectPerBin( ...
-    idxSplit, ConfY, Correct, subjID, split_perf, Cz_all, RTz_all, resVol_time, t_norm, ...
+    idxSplit, ConfY, Correct, subjID, split_perf, ConfY, RTz_all, resVol_time, t_norm, ...
     modelNames, modelSpec, baseLabels, ...
     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
     topIdx, minN_sub);
@@ -579,7 +579,7 @@ modelSpec(idx).use4  = true;
 
 end
 
-function [AIC_mat, BIC_mat, Pool] = fit_models_pooled( ...
+function [AIC_mat, BIC_mat] = fit_models_pooled( ...
     idxSplit, ConfY, Correct, subjID, split_perf, Cz_all, RTz_all, resVol_time, ...
     modelNames, modelSpec, baseLabels, twoWayNames, threeWayNames, fourWayNames, ...
     useSubjDummies, minN)
@@ -589,55 +589,26 @@ nModels = numel(modelNames);
 
 AIC_mat = nan(K, nModels);
 BIC_mat = nan(K, nModels);
-Pool    = struct();
 
-% labels used for pooled coefficient storage
-twoWayLabels   = {'b_{P×C}','b_{P×V}','b_{P×R}','b_{V×C}','b_{C×R}','b_{R×V}'};
-threeWayLabels = {'b_{P×V×C}','b_{P×C×R}','b_{P×V×R}','b_{V×C×R}'};
-fourWayLabels  = {'b_{P×V×C×R}'};
+
 
 for m = 1:nModels
     fprintf('\n=== [%s] Pooled fit: %s ===\n', 'SPLIT', modelNames{m});
-
-    % build term list for this model
-    termLabels = baseLabels;
-    termNames  = ["(Intercept)","perf","corr","vol","rt"];
-
-    for j = 1:6
-        if modelSpec(m).use2(j)
-            termLabels{end+1} = twoWayLabels{j}; %#ok<AGROW>
-            termNames(end+1)  = twoWayNames(j);  %#ok<AGROW>
-        end
-    end
-    for j = 1:4
-        if modelSpec(m).use3(j)
-            termLabels{end+1} = threeWayLabels{j}; %#ok<AGROW>
-            termNames(end+1)  = threeWayNames(j);  %#ok<AGROW>
-        end
-    end
-    if modelSpec(m).use4
-        termLabels{end+1} = fourWayLabels{1}; %#ok<AGROW>
-        termNames(end+1)  = fourWayNames;     %#ok<AGROW>
-    end
-
-    nTerms = numel(termNames);
-    beta_pool = nan(K, nTerms);
-    se_pool   = nan(K, nTerms);
-    p_pool    = nan(K, nTerms);
 
     for k = 1:K
         Vk = resVol_time(:,k);
 
         mask = idxSplit ...
             & ~isnan(Vk) & ~isnan(ConfY) & ~isnan(Correct) & ~isnan(split_perf) ...
-            & ~isnan(subjID) & ~isnan(RTz_all) & ~isnan(Cz_all);
+            & ~isnan(subjID) & ~isnan(RTz_all);
 
         if sum(mask) < minN
             continue;
         end
 
         y    = ConfY(mask);
-        P    = split_perf(mask);
+        % P    = Fp_all(mask);
+        P = split_perf(mask);
         C    = Cz_all(mask);
         Vraw = Vk(mask);
         R    = RTz_all(mask);
@@ -653,10 +624,10 @@ for m = 1:nModels
         PxC = P.*C; PxV = P.*V; PxR = P.*R;
         VxC = V.*C; CxR = C.*R; RxV = R.*V;
 
-        PxVxC   = P.*V.*C;
-        PxCxR   = P.*C.*R;
-        PxVxR   = P.*V.*R;
-        VxCxR   = V.*C.*R;
+        PxVxC  = P.*V.*C;
+        PxCxR  = P.*C.*R;
+        PxVxR  = P.*V.*R;
+        VxCxR  = V.*C.*R;
         PxVxCxR = P.*V.*C.*R;
 
         if useSubjDummies
@@ -702,30 +673,7 @@ for m = 1:nModels
 
         AIC_mat(k,m) = g.ModelCriterion.AIC;
         BIC_mat(k,m) = g.ModelCriterion.BIC;
-
-        % store pooled coefficients from THIS fit
-        coefNames = string(g.CoefficientNames);
-        coefEst   = g.Coefficients.Estimate;
-        coefSE    = g.Coefficients.SE;
-        coefP     = g.Coefficients.pValue;
-
-        for tt = 1:nTerms
-            nm = termNames(tt);
-            hit = find(coefNames == nm, 1, 'first');
-            if ~isempty(hit)
-                beta_pool(k,tt) = coefEst(hit);
-                se_pool(k,tt)   = coefSE(hit);
-                p_pool(k,tt)    = coefP(hit);
-            end
-        end
     end
-
-    Pool(m).mName      = modelNames{m};
-    Pool(m).termLabels = termLabels;
-    Pool(m).termNames  = termNames;
-    Pool(m).beta_pool  = beta_pool;
-    Pool(m).se_pool    = se_pool;
-    Pool(m).p_pool     = p_pool;
 end
 
 end
@@ -736,9 +684,9 @@ function Sel = refit_models_perSubjectPerBin( ...
     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
     topIdx, minN_sub)
 
-subj_list = unique(subjID(~isnan(subjID)))';
+subj_list = unique(subjID(:))';
 nSubj = numel(subj_list);
-K = size(resVol_time, 2);
+K = numel(t_norm);
 
 Sel = struct();
 
@@ -767,20 +715,11 @@ for ii = 1:numel(topIdx)
     end
 
     nTerms   = numel(termNames);
-    minN_eff = max(minN_sub, nTerms + 2);   % important
-
     beta_sub = nan(nSubj, K, nTerms);
     se_sub   = nan(nSubj, K, nTerms);
     p_sub    = nan(nSubj, K, nTerms);
 
     fprintf('\n--- Refit (per subject/bin): %s ---\n', mName);
-    fprintf('nTerms = %d, minN_eff = %d\n', nTerms, minN_eff);
-
-    nFitOK   = 0;
-    nTooFew  = 0;
-    nZeroStd = 0;
-    nFitErr  = 0;
-    shownErr = 0;
 
     for iSub = 1:nSubj
         s = subj_list(iSub);
@@ -790,47 +729,34 @@ for ii = 1:numel(topIdx)
 
             mask = idxSplit ...
                 & (subjID == s) ...
-                & ~isnan(Vk) ...
-                & ~isnan(ConfY) ...
-                & ~isnan(Correct) ...
-                & ~isnan(split_perf) ...
-                & ~isnan(Cz_all) ...
-                & ~isnan(RTz_all);
+                & ~isnan(Vk) & ~isnan(ConfY) & ~isnan(Correct) ...
+                & ~isnan(split_perf) & ~isnan(RTz_all);
 
-            nMask = sum(mask);
-
-            if nMask < minN_eff
-                nTooFew = nTooFew + 1;
+            if sum(mask) < minN_sub
                 continue;
             end
 
             y    = ConfY(mask);
-            P    = split_perf(mask);
+            % P    = Fp_all(mask);
+            P = split_perf(mask);
             C    = Cz_all(mask);
             Vraw = Vk(mask);
             R    = RTz_all(mask);
 
             sv = std(Vraw);
             if isnan(sv) || sv < 1e-12
-                nZeroStd = nZeroStd + 1;
                 continue;
             end
             V = (Vraw - mean(Vraw)) ./ sv;
-
-            % optional: skip obviously constant predictors
-            if std(P) < 1e-12 || std(R) < 1e-12
-                nZeroStd = nZeroStd + 1;
-                continue;
-            end
 
             % interactions
             PxC = P.*C; PxV = P.*V; PxR = P.*R;
             VxC = V.*C; CxR = C.*R; RxV = R.*V;
 
-            PxVxC   = P.*V.*C;
-            PxCxR   = P.*C.*R;
-            PxVxR   = P.*V.*R;
-            VxCxR   = V.*C.*R;
+            PxVxC  = P.*V.*C;
+            PxCxR  = P.*C.*R;
+            PxVxR  = P.*V.*R;
+            VxCxR  = V.*C.*R;
             PxVxCxR = P.*V.*C.*R;
 
             T = table(y,P,C,V,R, PxC,PxV,PxR,VxC,CxR,RxV, ...
@@ -856,15 +782,7 @@ for ii = 1:numel(topIdx)
 
             try
                 g = fitglm(T, f, 'Distribution','normal', 'Link','identity');
-                nFitOK = nFitOK + 1;
-            catch ME
-                nFitErr = nFitErr + 1;
-                if shownErr < 5
-                    fprintf('fitglm failed | model=%s | sub=%g | bin=%d | n=%d\n', ...
-                        mName, s, k, nMask);
-                    fprintf('Reason: %s\n', ME.message);
-                    shownErr = shownErr + 1;
-                end
+            catch
                 continue;
             end
 
@@ -885,9 +803,6 @@ for ii = 1:numel(topIdx)
         end
     end
 
-    fprintf('Summary for %s: fitOK=%d | tooFew=%d | zeroStd=%d | fitErr=%d\n', ...
-        mName, nFitOK, nTooFew, nZeroStd, nFitErr);
-
     Sel(ii).mName      = mName;
     Sel(ii).termLabels = termLabels;
     Sel(ii).termNames  = termNames;
@@ -898,6 +813,27 @@ end
 
 end
 
+function s = term_to_tex_compact(term)
+t = string(term);
+
+if contains(t, "Intercept")
+    s = '\beta_0';
+    return;
+end
+
+t = strrep(t, "b_{", "\beta_{");
+t = strrep(t, "b_",  "\beta_");
+
+t = strrep(t, "perf", "P");
+t = strrep(t, "corr", "C");
+t = strrep(t, "vol",  "V");
+t = strrep(t, "rt",   "R");
+
+t = strrep(t, "×", "×");
+
+s = char(t);
+end
+
 function plot_bigfigure_4cols_M8M9_earlyLate(SelEarly, SelLate, t_norm, colSub, outPDF, termList, figTitle)
 % 4 columns:
 %   1) M8 EARLY
@@ -905,10 +841,9 @@ function plot_bigfigure_4cols_M8M9_earlyLate(SelEarly, SelLate, t_norm, colSub, 
 %   3) M9 EARLY
 %   4) M9 LATE
 %
-% y-axis rule (NEW):
-%   each ROW (same term) shares one y-range across all 4 panels
-%   not global across rows
-%   default uses beta range only (not beta +/- se)
+% y-axis rule:
+%   for each term, EARLY/LATE within the same model share the same y-range
+%   (same logic as your code2)
 
 if nargin < 5 || isempty(outPDF)
     outPDF = 'BigFigure_M8M9_EarlyLate_AllTerms.pdf';
@@ -919,22 +854,6 @@ end
 if nargin < 7
     figTitle = 'EARLY vs LATE | M8 vs M9';
 end
-
-% ===================== USER-ADJUSTABLE Y-LIM SETTINGS =====================
-ROW_YLIM_MODE      = 'beta_se';   % 'beta' or 'beta_se'
-ROW_YLIM_PAD_FRAC  = 0.15;     % extra padding fraction
-ROW_YLIM_MIN_HALF  = 0.03;     % minimum half-range, avoids over-flat axes
-
-% optional visual settings
-DRAW_ZERO_LINE = true;
-lw_sub    = 0.9;
-lw_mean   = 1.2;
-alphaSub  = 0.10;
-alphaMean = 0.08;
-fontPanel = 9;
-
-SHOW_SUBJECT_SE = true;   % 是否画每个subject自己的SE色块
-SHOW_MEAN_SE    = true;    % 是否画黑线(mean)的SEM色块
 
 nameE = string({SelEarly.mName});
 nameL = string({SelLate.mName});
@@ -989,12 +908,14 @@ if nRows == 0
     return;
 end
 
-% ---- NEW: y-lims per ROW, shared across all 4 panels ----
-rowYLim = cell(nRows,1);
+% ---- y-lims per term, shared within each model across EARLY/LATE ----
+yLim_M8 = cell(nRows,1);
+yLim_M9 = cell(nRows,1);
+
 for r = 1:nRows
-    rowYLim{r} = local_row_ylim_4panels( ...
-        Panels, allTerms{r}, ...
-        ROW_YLIM_MODE, ROW_YLIM_PAD_FRAC, ROW_YLIM_MIN_HALF);
+    term = allTerms{r};
+    yLim_M8{r} = local_term_ylim_twoPanels(Panels(1).Sel, Panels(2).Sel, term);
+    yLim_M9{r} = local_term_ylim_twoPanels(Panels(3).Sel, Panels(4).Sel, term);
 end
 
 % ===================== Figure layout =====================
@@ -1034,6 +955,12 @@ usedH = nRows*tileHNorm + (nRows-1)*gapYNorm;
 x0   = L + ((1 - L - R) - usedW)/2;
 yTop = 1 - T - ((1 - T - B) - usedH)/2;
 
+fontPanel = 9;
+lw_sub    = 0.55;
+lw_mean   = 1.00;
+alphaSub  = 0.12;
+alphaMean = 0.08;
+
 lastAxPerCol = gobjects(1,nCols);
 
 for r = 1:nRows
@@ -1063,10 +990,7 @@ for r = 1:nRows
         xlim(ax,[0 1]);
         xticks(ax,0:0.2:1);
         set(ax,'FontSize',fontPanel,'LineWidth',0.8);
-
-        if DRAW_ZERO_LINE
-            yline(ax,0,'k--','LineWidth',0.6,'HandleVisibility','off');
-        end
+        yline(ax,0,'k--','LineWidth',0.6,'HandleVisibility','off');
 
         if r < nRows
             set(ax,'XTickLabel',[]);
@@ -1075,63 +999,48 @@ for r = 1:nRows
 
         termListHere = Panels(c).Sel.termLabels;
         tt = find(strcmp(termListHere, allTerms{r}), 1, 'first');
-
-        % same y-lim for entire row
-        ylim(ax, rowYLim{r});
-
         if isempty(tt)
             text(ax, 0.5, 0.5, '—', 'Units','normalized', ...
                 'HorizontalAlignment','center','VerticalAlignment','middle', ...
                 'FontSize', 16, 'Color', [0.35 0.35 0.35]);
+
+            if c <= 2
+                ylim(ax, yLim_M8{r});
+            else
+                ylim(ax, yLim_M9{r});
+            end
             continue;
         end
 
         beta_sub = Panels(c).Sel.beta_sub(:,:,tt);
         se_sub   = Panels(c).Sel.se_sub(:,:,tt);
 
-        % subject curves + subject SE band
         for s = 1:nSubj
             yv = squeeze(beta_sub(s,:));
             ev = squeeze(se_sub(s,:));
-
-            ok = isfinite(yv) & isfinite(ev);
+            ok = ~isnan(yv) & ~isnan(ev);
             if sum(ok) >= 2
-                xx = x(ok);
-                yy = yv(ok);
-                ee = ev(ok);
-
-                if SHOW_SUBJECT_SE
-                    fill(ax, [xx fliplr(xx)], [yy-ee fliplr(yy+ee)], colSub(s,:), ...
-                        'EdgeColor','none','FaceAlpha',alphaSub,'HandleVisibility','off');
-                end
+                xx = x(ok); yy = yv(ok); ee = ev(ok);
+                fill(ax, [xx fliplr(xx)], [yy-ee fliplr(yy+ee)], colSub(s,:), ...
+                    'EdgeColor','none','FaceAlpha',alphaSub,'HandleVisibility','off');
             end
-
-            okLine = isfinite(yv);
-            if sum(okLine) >= 2
-                plot(ax, x(okLine), yv(okLine), '-', ...
-                    'Color', colSub(s,:), 'LineWidth', lw_sub, 'HandleVisibility','off');
-            end
+            plot(ax, x, yv, '-', 'Color', colSub(s,:), 'LineWidth', lw_sub, 'HandleVisibility','off');
         end
 
-        % mean line + SEM
         yMean = mean(beta_sub,1,'omitnan');
-        nEff  = sum(isfinite(beta_sub),1);
-        ySEM  = std(beta_sub,0,1,'omitnan') ./ sqrt(max(nEff,1));
-
-        okm = isfinite(yMean) & isfinite(ySEM);
-        if SHOW_MEAN_SE && sum(okm) >= 2
-            xx = x(okm);
-            ym = yMean(okm);
-            es = ySEM(okm);
-        
+        ySEM  = std(beta_sub,0,1,'omitnan') ./ sqrt(nSubj);
+        okm = ~isnan(yMean) & ~isnan(ySEM);
+        if sum(okm) >= 2
+            xx = x(okm); ym = yMean(okm); es = ySEM(okm);
             fill(ax, [xx fliplr(xx)], [ym-es fliplr(ym+es)], [0 0 0], ...
                 'EdgeColor','none','FaceAlpha',alphaMean,'HandleVisibility','off');
         end
+        plot(ax, x, yMean, 'k-', 'LineWidth', lw_mean, 'HandleVisibility','off');
 
-        okMeanLine = isfinite(yMean);
-        if sum(okMeanLine) >= 2
-            plot(ax, x(okMeanLine), yMean(okMeanLine), 'k-', ...
-                'LineWidth', lw_mean, 'HandleVisibility','off');
+        if c <= 2
+            ylim(ax, yLim_M8{r});
+        else
+            ylim(ax, yLim_M9{r});
         end
     end
 end
@@ -1149,7 +1058,6 @@ axis(axLeg,'off'); hold(axLeg,'on');
 
 hLeg = gobjects(nSubj+1,1);
 legText = cell(nSubj+1,1);
-
 for s = 1:nSubj
     hLeg(s) = plot(axLeg, nan, nan, '-', 'LineWidth', 2.5, 'Color', colSub(s,:));
     legText{s} = sprintf('Subject %d', s);
@@ -1175,44 +1083,6 @@ set(fig,'PaperOrientation','portrait');
 
 print(fig, outPDF, '-dpdf', '-painters');
 fprintf('✓ Saved: %s\n', outPDF);
-
-end
-
-
-function yl = local_row_ylim_4panels(Panels, termLabel, mode, padFrac, minHalfSpan)
-% one y-lim per ROW, shared across all 4 panels
-
-vals = [];
-
-for c = 1:numel(Panels)
-    S = Panels(c).Sel;
-
-    tt = find(strcmp(S.termLabels, termLabel), 1, 'first');
-    if isempty(tt)
-        continue;
-    end
-
-    b = squeeze(S.beta_sub(:,:,tt));
-
-    if strcmpi(mode, 'beta_se')
-        e = squeeze(S.se_sub(:,:,tt));
-        vals = [vals; b(:); b(:)+e(:); b(:)-e(:)]; %#ok<AGROW>
-    else
-        vals = [vals; b(:)]; %#ok<AGROW>
-    end
-end
-
-vals = vals(isfinite(vals));
-
-if isempty(vals)
-    yl = [-1 1];
-    return;
-end
-
-maxAbs = max(abs(vals));
-halfSpan = max(maxAbs * (1 + padFrac), minHalfSpan);
-
-yl = [-halfSpan, halfSpan];
 
 end
 
@@ -1350,23 +1220,4 @@ for iSub = 1:nSubj
 
     resVol_time(idxS, :) = (vals - mu_s) ./ sd_s;
 end
-end
-
-function s = term_to_tex_compact(term)
-    t = string(term);
-
-    if contains(t, "Intercept")
-        s = '\beta_0';
-        return;
-    end
-
-    t = strrep(t, "b_{", "\beta_{");
-    t = strrep(t, "b_",  "\beta_");
-
-    t = strrep(t, "perf", "P");
-    t = strrep(t, "corr", "C");
-    t = strrep(t, "vol",  "V");
-    t = strrep(t, "rt",   "R");
-
-    s = char(t);
 end
