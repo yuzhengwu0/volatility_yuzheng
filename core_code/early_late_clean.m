@@ -32,8 +32,9 @@ addpath("helper_functions/");
 % ---------- Split mode ----------
 % 'trial' : first nEarly / last nLate trials per subject
 % 'cycle' : first nEarlyCycles / last nLateCycles complete cycles per subject
-SPLIT_MODE = 'trial';   % <-- 'trial' or 'cycle' or 'percent'
+SPLIT_MODE = 'percent';   % <-- 'trial' or 'cycle' or 'percent'
 DO_PLOT_AICBIC_DOTS = false;
+DO_PRINT_SUMMARY = true;
 
 % ---------- Trial-based split ----------
 nEarlyTrials = 300;     % first n trials per subject
@@ -160,9 +161,9 @@ cond(vol == min(vol_levels)) = 1;
 cond(vol == max(vol_levels)) = 2;
 
 
-%% ===================== 3.5) Initialize nTrials ============
-% get and save boundary info for each subject
-early_boundary_global = zeros(nSubj, 1);  % global trial index of last early trial
+%% ===================== 4) Early late trial index and boundary========================
+early_boundary_global = zeros(nSubj, 1);
+late_boundary_global  = zeros(nSubj, 1);
 
 for iSub = 1:nSubj
     s = subj_list(iSub);
@@ -171,15 +172,18 @@ for iSub = 1:nSubj
     
     if strcmp(SPLIT_MODE, 'trial')
         nE = min(nEarlyTrials, nS);
-        early_boundary_global(iSub) = idxS(nE);  % global index
+        nL = min(nLateTrials,  nS);
+        early_boundary_global(iSub) = idxS(nE);
+        late_boundary_global(iSub)  = idxS(end - nL + 1);  % late started here
         
     elseif strcmp(SPLIT_MODE, 'cycle')
         coh_s = coh(idxS);
         vol_s = vol(idxS);
+        
+        % --- nEarlyCycles from begining ---
         seen = false(numel(cohLevels_cycle), numel(volLevels_cycle));
         cycleCount = 0;
-        lastEarlyPos = nS;  % default: all trials
-        
+        lastEarlyPos = nS;
         for p = 1:nS
             ic = find(coh_s(p) == cohLevels_cycle, 1);
             iv = find(vol_s(p) == volLevels_cycle, 1);
@@ -189,17 +193,50 @@ for iSub = 1:nSubj
                 cycleCount = cycleCount + 1;
                 seen = false(numel(cohLevels_cycle), numel(volLevels_cycle));
                 if cycleCount == nEarlyCycles
-                    lastEarlyPos = p;  % local index within this subject
+                    lastEarlyPos = p;
                     break;
                 end
             end
         end
         early_boundary_global(iSub) = idxS(lastEarlyPos);
         
+        % --- nLateCycles from the end count backward ---
+        seen = false(numel(cohLevels_cycle), numel(volLevels_cycle));
+        cycleCount = 0;
+        firstLatePos = 1;
+        for p = nS:-1:1  % from the end
+            ic = find(coh_s(p) == cohLevels_cycle, 1);
+            iv = find(vol_s(p) == volLevels_cycle, 1);
+            if isempty(ic) || isempty(iv), continue; end
+            seen(ic, iv) = true;
+            if all(seen(:))
+                cycleCount = cycleCount + 1;
+                seen = false(numel(cohLevels_cycle), numel(volLevels_cycle));
+                if cycleCount == nLateCycles
+                    firstLatePos = p;
+                    break;
+                end
+            end
+        end
+        late_boundary_global(iSub) = idxS(firstLatePos);  % late started here
+        
     elseif strcmp(SPLIT_MODE, 'percent')
         nE = floor(pEarly * nS);
+        nL = floor(pLate  * nS);
         early_boundary_global(iSub) = idxS(max(nE, 1));
+        late_boundary_global(iSub)  = idxS(end - nL + 1);
     end
+end
+
+% build idxEarly / idxLate logical vectors
+idxEarly = false(nTrials, 1);
+idxLate  = false(nTrials, 1);
+
+for iSub = 1:nSubj
+    s = subj_list(iSub);
+    idxS = find(subjID == s);
+    idxEarly(idxS(idxS <= early_boundary_global(iSub))) = true;
+    idxLate(idxS(idxS >= late_boundary_global(iSub)))   = true;
 end
 
 %% ===================== 4) Performance: condition mean accuracy ============
@@ -292,104 +329,6 @@ for iSub = 1:nSubj
     late_perf_all(iSub, :) = combination_performance(iSub, :) ./ combination_counter(iSub, :);
 end
 
-
-%% ===================== 5) Build EARLY/LATE indices ========================
-% calculate nTrials based on trial/cycle/percent
-
-idxEarly = false(nTrials,1);
-idxLate  = false(nTrials,1);
-
-switch lower(SPLIT_MODE)
-
-    case 'trial'
-        fprintf('\nUsing SPLIT_MODE = trial\n');
-
-        for iSub = 1:nSubj
-            s = subj_list(iSub);
-            idxS = find(subjID == s);   % preserves original order
-            if isempty(idxS), continue; end
-
-            nS = numel(idxS);
-            nE = min(nEarly, nS);
-            nL = min(nLate,  nS);
-
-            idxEarly(idxS(1:nE)) = true;
-            idxLate(idxS(end-nL+1:end)) = true;
-        end
-
-    case 'cycle'
-        fprintf('\nUsing SPLIT_MODE = cycle\n');
-
-        nCoh  = numel(cohLevels_cycle);
-        nVol  = numel(volLevels_cycle);
-        nComb = nCoh * nVol;
-
-        fprintf('Cycle definition: %d coherence x %d volatility = %d combinations\n', ...
-            nCoh, nVol, nComb);
-
-        for iSub = 1:nSubj
-            s = subj_list(iSub);
-
-            idxS = find(subjID == s);
-            if isempty(idxS), continue; end
-
-            coh_s = coh(idxS);
-            vol_s = vol(idxS);
-
-            seen = false(nCoh, nVol);
-            cycleStartPos = 1;
-            cycleRanges = [];   % rows: [startPos endPos] in idxS-space
-
-            for p = 1:numel(idxS)
-                cval = coh_s(p);
-                vval = vol_s(p);
-
-                ic = find(cval == cohLevels_cycle, 1, 'first');
-                iv = find(vval == volLevels_cycle, 1, 'first');
-
-                if isempty(ic) || isempty(iv)
-                    continue;
-                end
-
-                seen(ic, iv) = true;
-
-                if all(seen(:))
-                    cycleRanges(end+1,:) = [cycleStartPos, p]; %#ok<AGROW>
-                    seen = false(nCoh, nVol);
-                    cycleStartPos = p + 1;
-                end
-            end
-
-            nCompleteCycles = size(cycleRanges,1);
-            if nCompleteCycles == 0
-                continue;
-            end
-
-            nE = min(nEarlyCycles, nCompleteCycles);
-            nL = min(nLateCycles,  nCompleteCycles);
-
-            % EARLY
-            for cc = 1:nE
-                st = cycleRanges(cc,1);
-                en = cycleRanges(cc,2);
-                idxEarly(idxS(st:en)) = true;
-            end
-
-            % LATE
-            for cc = (nCompleteCycles - nL + 1) : nCompleteCycles
-                st = cycleRanges(cc,1);
-                en = cycleRanges(cc,2);
-                idxLate(idxS(st:en)) = true;
-            end
-        end
-
-    otherwise
-        error('Unknown SPLIT_MODE: %s. Use ''trial'' or ''cycle''.', SPLIT_MODE);
-end
-
-fprintf('EARLY total trials: %d\n', sum(idxEarly));
-fprintf('LATE  total trials: %d\n', sum(idxLate));
-
 %% ===================== 6) residual volatility: compute for all trials ======
 winLen = 10;
 tol    = 1e-12;
@@ -402,6 +341,58 @@ resVol_mat = compute_resVol_time(motion_energy, nBins, winLen, tol);
 %fprintf('Residual volatility (EARLY): %d trials x %d bins\n', size(resVol_time_early,1), size(resVol_time_early,2));
 %fprintf('Residual volatility (LATE) : %d trials x %d bins\n', size(resVol_time_late,1), size(resVol_time_late,2));
 
+%% ===================== PRINT SUMMARY =====================
+if DO_PRINT_SUMMARY
+    fprintf('\n========== DATA SUMMARY FOR REGRESSION ==========\n');
+    fprintf('SPLIT_MODE: %s\n', SPLIT_MODE);
+    
+    for iSub = 1:nSubj
+        s = subj_list(iSub);
+        fprintf('\n--- Subject %d ---\n', s);
+        
+        % 1) Trial counts
+        idxS_all   = find(subjID == s);
+        idxS_early = find(subjID == s & (1:nTrials)' <= early_boundary_global(iSub));
+        idxS_late  = find(subjID == s & idxLate);
+        fprintf('  Trials total : %d\n', numel(idxS_all));
+        fprintf('  Trials early : %d  (global boundary index = %d)\n', numel(idxS_early), early_boundary_global(iSub));
+        fprintf('  Trials late  : %d\n', numel(idxS_late));
+        
+        % 2) Confidence (ConfY)
+        conf_early = ConfY(idxS_early);
+        conf_late  = ConfY(idxS_late);
+        fprintf('  ConfY early  : %d values, mean=%.3f, std=%.3f  [stored in ConfY, nTrials x 1]\n', ...
+            numel(conf_early), mean(conf_early,'omitnan'), std(conf_early,'omitnan'));
+        fprintf('  ConfY late   : %d values, mean=%.3f, std=%.3f\n', ...
+            numel(conf_late), mean(conf_late,'omitnan'), std(conf_late,'omitnan'));
+        
+        % 3) Residual volatility (resVol_mat)
+        resVol_early = resVol_mat(idxS_early, :);
+        resVol_late  = resVol_mat(idxS_late,  :);
+        fprintf('  resVol early : %d trials x %d bins, mean=%.6f, std=%.6f  [stored in resVol_mat]\n', ...
+            size(resVol_early,1), size(resVol_early,2), mean(resVol_early(:),'omitnan'), std(resVol_early(:),'omitnan'));
+        fprintf('  resVol late  : %d trials x %d bins, mean=%.6f, std=%.6f\n', ...
+            size(resVol_late,1), size(resVol_late,2), mean(resVol_late(:),'omitnan'), std(resVol_late(:),'omitnan'));
+        
+        % 4) Performance
+        % early: cumulative up to boundary → early_perf_at_cycle (1 x 12 per subject)
+        % late:  cumulative over all trials → late_perf_all (1 x 12 per subject)
+        fprintf('  Perf early   : 1x12 combo vector  [stored in early_perf_at_cycle(%d,:)]\n', iSub);
+        fprintf('                 %s\n', mat2str(round(early_perf_at_cycle(iSub,:), 3)));
+        fprintf('  Perf late    : 1x12 combo vector  [stored in late_perf_all(%d,:)]\n', iSub);
+        fprintf('                 %s\n', mat2str(round(late_perf_all(iSub,:), 3)));
+        
+        % 5) RT (RTz_all)
+        rt_early = RTz_all(idxS_early);
+        rt_late  = RTz_all(idxS_late);
+        fprintf('  RT early     : %d values, mean=%.3f  [stored in RTz_all, nTrials x 1]\n', ...
+            numel(rt_early), mean(rt_early,'omitnan'));
+        fprintf('  RT late      : %d values, mean=%.3f\n', ...
+            numel(rt_late), mean(rt_late,'omitnan'));
+    end
+    
+    fprintf('\n==================================================\n');
+end
 
 %% ===================== 8) Model family ===================================
 [modelNames, modelSpec, baseLabels, twoWayNames, twoWayLabels, ...
