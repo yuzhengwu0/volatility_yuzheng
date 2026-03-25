@@ -20,7 +20,7 @@ Correct = cfg.Correct;
 subjID = cfg.subjID;
 p_perf_online = cfg.p_perf_online;
 RTz_all = cfg.RTz_all;
-resVol_time = cfg.resVol_time;
+resVol_mat = cfg.resVol_mat;
 modelNames = cfg.modelNames;
 modelSpec = cfg.modelSpec;
 baseLabels = cfg.baseLabels;
@@ -28,16 +28,16 @@ twoWayNames = cfg.twoWayNames;
 threeWayNames = cfg.threeWayNames;
 fourWayNames = cfg.fourWayNames;
 useSubjDummies = cfg.useSubjDummies;
-minN = cfg.minN;
+minN_pooled = cfg.minN_pooled;
 
 % set up structures for storing data
-K = size(resVol_time,2);
+K = size(resVol_mat,2);
 nModels = numel(modelNames);
 
 AIC_mat = nan(K, nModels);
 BIC_mat = nan(K, nModels);
 Pool    = struct();
-Fitted_models = nan(K, nModels);
+Fitted_models = struct();
 
 % labels used for pooled coefficient storage
 twoWayLabels   = {'b_{P×C}','b_{P×V}','b_{P×R}','b_{V×C}','b_{C×R}','b_{R×V}'};
@@ -74,9 +74,9 @@ for m = 1:nModels
     p_pool    = nan(K, nTerms);
 
     for k = 1:K
-        Vk = resVol_time(:,k);
+        Vk = resVol_mat(:,k);
 
-        if sum(idxSplit) < minN
+        if sum(idxSplit) < minN_pooled
             continue;
         end
 

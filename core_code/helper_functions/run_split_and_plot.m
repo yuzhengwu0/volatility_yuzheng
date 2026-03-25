@@ -3,19 +3,17 @@ function SelOut = run_split_and_plot(idxSplit, splitTag, ...
     modelNames, modelSpec, baseLabels, ...
     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
     useSubjDummies, minN_pooled, minN_sub, ...
-    FORCE_FIXED_MODELS, fixedTopIdx, DO_PLOT_AICBIC_DOTS)
+    FORCE_FIXED_MODELS, fixedTopIdx, DO_PLOT_AICBIC_DOTS, cfg)
 
 % unpack config contents to be used in the function
-ConfY = cfg.ConfY;
-Correct = cfg.Correct;
+%ConfY = cfg.ConfY;
+%Correct = cfg.Correct;
 
 
 
 % ---- pooled model selection ----
 [AIC_mat, BIC_mat, Pool] = fit_models_pooled( ...
-    idxSplit, ConfY, Correct, subjID, split_perf, Cz_all, RTz_all, resVol_time, ...
-    modelNames, modelSpec, baseLabels, twoWayNames, threeWayNames, fourWayNames, ...
-    useSubjDummies, minN_pooled);
+    idxSplit, cfg);
 
 K = size(AIC_mat, 1);
 nModels = numel(modelNames);
