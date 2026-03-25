@@ -23,21 +23,21 @@
 
 clear; clc; close all;
 
-%% ===================== 0) Toolboxes ======================
+%% ===================== 0) Toolboxes: only run once at startup of matlab ======================
 addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/boundedline-pkg-master'));
 addpath("helper_functions/");
 
-%% ===================== USER SETTINGS =====================
+%% ===================== USER SETTINGS: run every time you clear the workspace =====================
 
 % ---------- Split mode ----------
 % 'trial' : first nEarly / last nLate trials per subject
 % 'cycle' : first nEarlyCycles / last nLateCycles complete cycles per subject
-SPLIT_MODE = 'cycle';   % <-- change to 'cycle' if wanted
+SPLIT_MODE = 'trial';   % <-- change to 'cycle' if wanted
 DO_PLOT_AICBIC_DOTS = false;
 
 % ---------- Trial-based split ----------
 nEarly = 300;     % first n trials per subject
-nLate  = 300;     % last  m trials per subject
+nLate  = 500;     % last  m trials per subject
 
 % ---------- Cycle-based split ----------
 nEarlyCycles = 10;   % first n complete cycles
@@ -101,6 +101,7 @@ fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
 coh           = coh_all(valid);
 resp          = resp_all(valid);
 Correct       = correct_all(valid);
+Cz_all = Correct;
 confCont      = confCont_all(valid);
 vol           = vol_all(valid);
 subjID        = subjID_all(valid);
@@ -346,21 +347,23 @@ resVol_mat = compute_resVol_time(motion_energy, nBins, winLen, tol);
 %% ===================== 9) Run pipeline for EARLY and LATE ================
 if DO_PLOT
 
+    resVol_time_early = resVol_mat(idxEarly);
     SelEarly = run_split_and_plot( ...
         idxEarly, 'EARLY', ...
         ConfY, Correct, subjID, early_perf, Cz_all, RTz_all, resVol_time_early, t_norm, colSub, ...
         modelNames, modelSpec, baseLabels, ...
         twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
         useSubjDummies, minN_pooled, minN_sub, ...
-        FORCE_FIXED_MODELS, fixedTopIdx, DO_PLOT_AICBIC_DOTS);
+        FORCE_FIXED_MODELS, fixedTopIdx, DO_PLOT_AICBIC_DOTS, cfg);
 
+    resVol_time_late = resVol_mat(idxLate);
     SelLate = run_split_and_plot( ...
         idxLate, 'LATE', ...
         ConfY, Correct, subjID, p_perf_online, Cz_all, RTz_all, resVol_time_late, t_norm, colSub, ...
         modelNames, modelSpec, baseLabels, ...
         twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
         useSubjDummies, minN_pooled, minN_sub, ...
-        FORCE_FIXED_MODELS, fixedTopIdx, DO_PLOT_AICBIC_DOTS);
+        FORCE_FIXED_MODELS, fixedTopIdx, DO_PLOT_AICBIC_DOTS, cfg);
 
     % Final figure: Early M8 | Late M8 | Early M9 | Late M9
     plot_bigfigure_4cols_M8M9_earlyLate(SelEarly, SelLate, t_norm, colSub, outPDF, [], ...
@@ -379,10 +382,10 @@ fprintf('\nDone.\n');
 cfg.subjID              = subjID;
 cfg.ConfY               = ConfY;
 cfg.Correct             = Correct;
-cfg.Cz_all              = Cz_all;
 cfg.RTz_all             = RTz_all;
 cfg.p_perf_online    = p_perf_online;
 cfg.t_norm              = t_norm;
+cfg.resVol_mat        = resVol_mat;
 cfg.colSub              = colSub;
 cfg.modelNames          = modelNames;
 cfg.modelSpec           = modelSpec;
