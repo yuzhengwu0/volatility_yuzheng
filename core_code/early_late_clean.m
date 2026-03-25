@@ -24,7 +24,7 @@
 clear; clc; close all;
 
 %% ===================== 0) Toolboxes: only run once at startup of matlab ======================
-addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/boundedline-pkg-master'));
+% addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/boundedline-pkg-master'));
 addpath("helper_functions/");
 
 %% ===================== USER SETTINGS: run every time you clear the workspace =====================
@@ -32,12 +32,12 @@ addpath("helper_functions/");
 % ---------- Split mode ----------
 % 'trial' : first nEarly / last nLate trials per subject
 % 'cycle' : first nEarlyCycles / last nLateCycles complete cycles per subject
-SPLIT_MODE = 'trial';   % <-- change to 'cycle' if wanted
+SPLIT_MODE = 'cycle';   % <-- change to 'cycle' if wanted
 DO_PLOT_AICBIC_DOTS = false;
 
 % ---------- Trial-based split ----------
-nEarly = 300;     % first n trials per subject
-nLate  = 500;     % last  m trials per subject
+nEarlyTrials = 300;     % first n trials per subject
+nLateTrials  = 500;     % last  m trials per subject
 
 % ---------- Cycle-based split ----------
 nEarlyCycles = 10;   % first n complete cycles
@@ -46,6 +46,22 @@ nLateCycles  = 10;   % last  m complete cycles
 % ---------- Percentage-based split ----------
 pEarly = 0.2;
 pLate = 0.3;
+
+if strcmp(SPLIT_MODE, 'trial')
+    nEarly = nEarlyTrials;
+    nLate  = nLateTrials;
+
+elseif strcmp(SPLIT_MODE, 'cycle')
+    nEarly = nEarlyCycles;
+    nLate  = nLateCycles;
+
+elseif strcmp(SPLIT_MODE, 'percent')
+    nEarly = pEarly;
+    nLate  = pLate;
+
+else
+    error('Unknown SPLIT_MODE: %s', SPLIT_MODE);
+end
 
 % One cycle = all coherence x volatility combinations
 cohLevels_cycle = [0 32 64 128 256 512];
@@ -101,14 +117,14 @@ fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
 coh           = coh_all(valid);
 resp          = resp_all(valid);
 Correct       = correct_all(valid);
-Cz_all = Correct;
+% Cz_all        = Correct;  We use Correct itself instead of Cz_all
 confCont      = confCont_all(valid);
 vol           = vol_all(valid);
 subjID        = subjID_all(valid);
 motion_energy = ME_cell_all(valid);
 rt            = rt_all(valid);
 
-nTrials = numel(coh);
+nTrials = numel(Correct);
 fprintf('Total valid trials: %d\n', nTrials);
 
 subj_list = unique(subjID);
@@ -117,9 +133,6 @@ nSubj     = numel(subj_list);
 %% ===================== 2) Confidence and RT: within-subject z-score ==============
 ConfY   = nan(size(confCont));
 RTz_all = nan(size(rt));
-
-subj_list = unique(subjID);
-nSubj = numel(subj_list);
 
 for iSub = 1:nSubj
     s = subj_list(iSub);
@@ -188,6 +201,10 @@ combination_counter(:) = 2;      % 2 pseudo-trials to anchor at chance
 combination_performance(:) = 1;  % 1 correct out of those 2 → 0.5
 endTrial = zeros(nSubj, 1);
 
+% initialize early cycle counter and early cycle perf
+early_perf_online     = nan(nTrials, 1);                       
+early_perf_at_cycle   = nan(nSubj, length(cond_list) * length(coh_list));  
+
 % compute "online" performance estimation
 for iSub = 1:nSubj
     thisSub = subj_list(iSub);
@@ -219,11 +236,20 @@ for iSub = 1:nSubj
 
         % (3) increment the counter for this subject & combination
         combination_counter(iSub, combo_idx) = combination_counter(iSub, combo_idx) + 1;
-
+        
         % (4) update performance estimate for this combination
         combination_performance(iSub, combo_idx) = combination_performance(iSub, combo_idx) + this_correct;
         p_perf_online(tr) = combination_performance(iSub, combo_idx) / combination_counter(iSub, combo_idx);
         
+        % (4.5) extract early counter and early perf for cycle
+        % (4.5) early cycle perf
+        if ~all(combination_counter(iSub, :) >= nEarly)
+            early_perf_online(tr) = p_perf_online(tr);
+        else
+            if isnan(early_perf_at_cycle(iSub))
+                early_perf_at_cycle(iSub) = p_perf_online(tr);
+            end
+        end
         % (5) store early trials directly
         tr_local = tr - startTrial + 1;
         if tr_local <= min(nEarly, nTrials_sub)
