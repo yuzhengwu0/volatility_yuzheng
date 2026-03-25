@@ -47,21 +47,6 @@ nLateCycles  = 10;   % last  m complete cycles
 pEarly = 0.2;
 pLate = 0.3;
 
-if strcmp(SPLIT_MODE, 'trial')
-    nEarly = nEarlyTrials;
-    nLate  = nLateTrials;
-
-elseif strcmp(SPLIT_MODE, 'cycle')
-    nEarly = nEarlyCycles;
-    nLate  = nLateCycles;
-
-elseif strcmp(SPLIT_MODE, 'percent')
-    nEarly = pEarly;
-    nLate  = pLate;
-
-else
-    error('Unknown SPLIT_MODE: %s', SPLIT_MODE);
-end
 
 % One cycle = all coherence x volatility combinations
 cohLevels_cycle = [0 32 64 128 256 512];
@@ -174,6 +159,61 @@ cond = nan(size(vol));
 cond(vol == min(vol_levels)) = 1;
 cond(vol == max(vol_levels)) = 2;
 
+
+%% ===================== 3.5) Initialize nTrials ============
+
+% 先把 cycle 相关的边界信息提前算出来，存成 per-subject 的结构
+% 这样 Sec4 的循环就知道每个 subject 的 early 截止在哪里
+
+% 提前算每个 subject 的 early boundary trial index
+early_boundary_global = zeros(nSubj, 1);  % global trial index of last early trial
+
+for iSub = 1:nSubj
+    s = subj_list(iSub);
+    idxS = find(subjID == s);
+    nS = numel(idxS);
+    
+    if strcmp(SPLIT_MODE, 'trial')
+        nE = min(nEarlyTrials, nS);
+        early_boundary_global(iSub) = idxS(nE);  % global index
+        
+    elseif strcmp(SPLIT_MODE, 'cycle')
+        coh_s = coh(idxS);
+        vol_s = vol(idxS);
+        seen = false(numel(cohLevels_cycle), numel(volLevels_cycle));
+        cycleCount = 0;
+        lastEarlyPos = nS;  % default: all trials
+        
+        for p = 1:nS
+            ic = find(coh_s(p) == cohLevels_cycle, 1);
+            iv = find(vol_s(p) == volLevels_cycle, 1);
+            if isempty(ic) || isempty(iv), continue; end
+            seen(ic, iv) = true;
+            if all(seen(:))
+                cycleCount = cycleCount + 1;
+                seen = false(numel(cohLevels_cycle), numel(volLevels_cycle));
+                if cycleCount == nEarlyCycles
+                    lastEarlyPos = p;  % local index within this subject
+                    break;
+                end
+            end
+        end
+        early_boundary_global(iSub) = idxS(lastEarlyPos);
+        
+    elseif strcmp(SPLIT_MODE, 'percent')
+        nE = floor(pEarly * nS);
+        early_boundary_global(iSub) = idxS(max(nE, 1));
+    end
+end
+
+% 然后 Section 4 的主循环里，用这个 boundary 来判断 early
+% 把原来的:
+%   if tr_local <= min(nEarly, nTrials_sub)
+%       early_perf(tr) = p_perf_online(tr);
+% 替换成:
+%   if tr <= early_boundary_global(iSub)
+%       early_perf(tr) = p_perf_online(tr);
+
 %% ===================== 4) Performance: condition mean accuracy ============
 % compute accuracy as a function of trial in the decision task %%%%%%%%%%%
 
@@ -242,23 +282,31 @@ for iSub = 1:nSubj
         p_perf_online(tr) = combination_performance(iSub, combo_idx) / combination_counter(iSub, combo_idx);
         
         % (4.5) extract early counter and early perf for cycle
-        % (4.5) early cycle perf
-        if ~all(combination_counter(iSub, :) >= nEarly)
-            early_perf_online(tr) = p_perf_online(tr);
-        else
-            if isnan(early_perf_at_cycle(iSub))
-                early_perf_at_cycle(iSub) = p_perf_online(tr);
-            end
+        % save the perf right at the early boundary
+        if ~isnan(early_boundary_global(iSub)) && tr == early_boundary_global(iSub)
+            % combination_performance & combination_counter -- using current accuracy
+            early_perf_at_cycle(iSub, :) = combination_performance(iSub, :) ./ combination_counter(iSub, :);
         end
+        
         % (5) store early trials directly
-        tr_local = tr - startTrial + 1;
-        if tr_local <= min(nEarly, nTrials_sub)
+        if tr <= early_boundary_global(iSub)
             early_perf(tr) = p_perf_online(tr);
         end
+
     end
 end
 
+% save late_perf
+late_perf_all = nan(nSubj, total_combinations);
+
+for iSub = 1:nSubj
+    late_perf_all(iSub, :) = combination_performance(iSub, :) ./ combination_counter(iSub, :);
+end
+
+
 %% ===================== 5) Build EARLY/LATE indices ========================
+% calculate nTrials based on trial/cycle/percent
+
 idxEarly = false(nTrials,1);
 idxLate  = false(nTrials,1);
 
