@@ -32,7 +32,7 @@ addpath("helper_functions/");
 % ---------- Split mode ----------
 % 'trial' : first nEarly / last nLate trials per subject
 % 'cycle' : first nEarlyCycles / last nLateCycles complete cycles per subject
-SPLIT_MODE = 'cycle';   % <-- change to 'cycle' if wanted
+SPLIT_MODE = 'trial';   % <-- 'trial' or 'cycle' or 'percent'
 DO_PLOT_AICBIC_DOTS = false;
 
 % ---------- Trial-based split ----------
@@ -161,11 +161,7 @@ cond(vol == max(vol_levels)) = 2;
 
 
 %% ===================== 3.5) Initialize nTrials ============
-
-% 先把 cycle 相关的边界信息提前算出来，存成 per-subject 的结构
-% 这样 Sec4 的循环就知道每个 subject 的 early 截止在哪里
-
-% 提前算每个 subject 的 early boundary trial index
+% get and save boundary info for each subject
 early_boundary_global = zeros(nSubj, 1);  % global trial index of last early trial
 
 for iSub = 1:nSubj
@@ -206,14 +202,6 @@ for iSub = 1:nSubj
     end
 end
 
-% 然后 Section 4 的主循环里，用这个 boundary 来判断 early
-% 把原来的:
-%   if tr_local <= min(nEarly, nTrials_sub)
-%       early_perf(tr) = p_perf_online(tr);
-% 替换成:
-%   if tr <= early_boundary_global(iSub)
-%       early_perf(tr) = p_perf_online(tr);
-
 %% ===================== 4) Performance: condition mean accuracy ============
 % compute accuracy as a function of trial in the decision task %%%%%%%%%%%
 
@@ -242,7 +230,8 @@ combination_performance(:) = 1;  % 1 correct out of those 2 → 0.5
 endTrial = zeros(nSubj, 1);
 
 % initialize early cycle counter and early cycle perf
-early_perf_online     = nan(nTrials, 1);                       
+early_perf_online     = nan(nTrials, 1);
+early_counter = nan(nSubj, length(cond_list) * length(coh_list)); 
 early_perf_at_cycle   = nan(nSubj, length(cond_list) * length(coh_list));  
 
 % compute "online" performance estimation
@@ -282,12 +271,12 @@ for iSub = 1:nSubj
         p_perf_online(tr) = combination_performance(iSub, combo_idx) / combination_counter(iSub, combo_idx);
         
         % (4.5) extract early counter and early perf for cycle
-        % save the perf right at the early boundary
+        % save early_perf_at_cycle counter（without pseudo）
         if ~isnan(early_boundary_global(iSub)) && tr == early_boundary_global(iSub)
-            % combination_performance & combination_counter -- using current accuracy
             early_perf_at_cycle(iSub, :) = combination_performance(iSub, :) ./ combination_counter(iSub, :);
+            early_counter(iSub, :) = combination_counter(iSub, :) - 2;  % get rid of pseudo
         end
-        
+
         % (5) store early trials directly
         if tr <= early_boundary_global(iSub)
             early_perf(tr) = p_perf_online(tr);
