@@ -1,68 +1,38 @@
 function [modelNames, modelSpec, baseLabels, twoWayNames, twoWayLabels, ...
     threeWayNames, threeWayLabels, fourWayNames, fourWayLabels] = build_model_family()
 
-baseLabels = {'b0 (Intercept)','b_{perf}','b_{corr}','b_{vol}','b_{rt}'};
-
-twoWayNames  = ["PxC","PxV","PxR","VxC","CxR","RxV"];
-twoWayLabels = {'b_{perf×corr}','b_{perf×vol}','b_{perf×rt}', ...
-                'b_{vol×corr}','b_{corr×rt}','b_{rt×vol}'};
-
+baseLabels    = {'b0 (Intercept)','b_{perf}','b_{corr}','b_{vol}','b_{rt}'};
+twoWayNames   = ["PxC","CxR","RxV","PxV","PxR","VxC"];
+twoWayLabels  = {'b_{perf×corr}','b_{perf×vol}','b_{perf×rt}','b_{vol×corr}','b_{corr×rt}','b_{rt×vol}'};
 threeWayNames  = ["PxVxC","PxCxR","PxVxR","VxCxR"];
-threeWayLabels = {'b_{perf×vol×corr}','b_{perf×corr×rt}', ...
-                  'b_{perf×vol×rt}','b_{vol×corr×rt}'};
-
+threeWayLabels = {'b_{perf×vol×corr}','b_{perf×corr×rt}','b_{perf×vol×rt}','b_{vol×corr×rt}'};
 fourWayNames  = "PxVxCxR";
 fourWayLabels = {'b_{perf×vol×corr×rt}'};
 
-modelNames = {};
-modelSpec  = struct('use2',{},'use3',{},'use4',{});
+% each row: [name,  use2 (6 bits),  use3 (4 bits),  use4]
+% use2/3/4 written as index lists of which terms to turn ON (empty = none)
+defs = {
+    'M0_base',          [],          [],    false;
+    'M1_2way_PxC',      1,         [],    false;
+    'M2_2way_CxR',      2,         [],    false;
+    'M3_2way_RxV',      3,         [],    false;
+    'M4_2way_PxV',      4,         [],    false;
+    'M5_2way_PxR',      5,         [],    false;
+    'M6_2way_VxC',      6,         [],    false;
+    'M7_all2',          1:6,       [],    false;
+    'M8_all2_all3',     1:6,       1:4, false;
+    'M9_full',          1:6,       1:4, true;
+};
 
-% M0
-idx = numel(modelNames) + 1;
-modelNames{idx}      = 'M0_base';
-modelSpec(idx).use2  = false(1,6);
-modelSpec(idx).use3  = false(1,4);
-modelSpec(idx).use4  = false;
+nModels   = size(defs, 1);
+modelNames = defs(:, 1)';
+modelSpec  = struct('use2', cell(1,nModels), 'use3', cell(1,nModels), 'use4', cell(1,nModels));
 
-% M1
-idx = numel(modelNames) + 1;
-modelNames{idx}      = 'M1_PC';
-modelSpec(idx).use2  = false(1,6);
-modelSpec(idx).use2(1) = true;
-modelSpec(idx).use3  = false(1,4);
-modelSpec(idx).use4  = false;
-
-% M2-M6
-oneAtATime = [5 6 2 3 4];  % CxR, RxV, PxV, PxR, VxC
-for ii = 1:numel(oneAtATime)
-    j = oneAtATime(ii);
-    idx = numel(modelNames) + 1;
-    modelNames{idx}     = sprintf('M%d_2way_%s', 1+ii, twoWayNames(j));
-    modelSpec(idx).use2 = false(1,6);
-    modelSpec(idx).use2(j) = true;
-    modelSpec(idx).use3 = false(1,4);
-    modelSpec(idx).use4 = false;
+for i = 1:nModels
+    u2 = false(1,6); u2(defs{i,2}) = true;
+    u3 = false(1,4); u3(defs{i,3}) = true;
+    modelSpec(i).use2 = u2;
+    modelSpec(i).use3 = u3;
+    modelSpec(i).use4 = defs{i,4};
 end
-
-% M7
-idx = numel(modelNames) + 1;
-modelNames{idx}      = 'M7_all2';
-modelSpec(idx).use2  = true(1,6);
-modelSpec(idx).use3  = false(1,4);
-modelSpec(idx).use4  = false;
-
-% M8
-idx = numel(modelNames) + 1;
-modelNames{idx}      = 'M8_all2_all3';
-modelSpec(idx).use2  = true(1,6);
-modelSpec(idx).use3  = true(1,4);
-modelSpec(idx).use4  = false;
-
-% M9
-idx = numel(modelNames) + 1;
-modelNames{idx}      = 'M9_full';
-modelSpec(idx).use2  = true(1,6);
-modelSpec(idx).use3  = true(1,4);
-modelSpec(idx).use4  = true;
-
 end

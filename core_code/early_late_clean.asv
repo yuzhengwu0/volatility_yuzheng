@@ -32,13 +32,13 @@ addpath("helper_functions/");
 % ---------- Split mode ----------
 % 'trial' : first nEarly / last nLate trials per subject
 % 'cycle' : first nEarlyCycles / last nLateCycles complete cycles per subject
-SPLIT_MODE = 'percent';   % <-- 'trial' or 'cycle' or 'percent'
-DO_PLOT_AICBIC_DOTS = false;
+SPLIT_MODE = 'trial';   % <-- 'trial' or 'cycle' or 'percent'
+DO_PLOT_AICBIC_DOTS = true;
 DO_PRINT_SUMMARY = true;
 
 % ---------- Trial-based split ----------
 nEarlyTrials = 300;     % first n trials per subject
-nLateTrials  = 500;     % last  m trials per subject
+nLateTrials  = 300;     % last  m trials per subject
 
 % ---------- Cycle-based split ----------
 nEarlyCycles = 10;   % first n complete cycles
@@ -335,11 +335,65 @@ tol    = 1e-12;
 t_norm = linspace(0, 1, nBins);
 resVol_mat = compute_resVol_time(motion_energy, nBins, winLen, tol);
 
-%resVol_time_early = compute_resVol_time_split(motion_energy, subjID, nBins, winLen, tol, idxEarly);
-%resVol_time_late  = compute_resVol_time_split(motion_energy, subjID, nBins, winLen, tol, idxLate);
-
-%fprintf('Residual volatility (EARLY): %d trials x %d bins\n', size(resVol_time_early,1), size(resVol_time_early,2));
-%fprintf('Residual volatility (LATE) : %d trials x %d bins\n', size(resVol_time_late,1), size(resVol_time_late,2));
+%% ===================== plot predictors =====================
+% plot predictors & outcome variable
+tiledlayout;
+% plot z-scored confidence
+nexttile;
+histogram(ConfY);
+title('confidence z-scored within subject - all');
+% plot z-scored confidence - early
+nexttile;
+histogram(ConfY(idxEarly));
+title('confidence z-scored within subject - early');
+% plot z-scored confidence - late
+nexttile;
+histogram(ConfY(idxLate));
+title('confidence z-scored within subject - late');
+% plot mysterious performance term
+nexttile;
+histogram(early_perf)
+title('early perf')
+% plot other performance term
+nexttile;
+histogram(p_perf_online);
+title('p perf online (late perf = all)');
+% plot correctness
+nexttile;
+histogram(Correct);
+title('correctness');
+% plot correctness - early
+nexttile;
+histogram(Correct(idxEarly));
+title('correctness - early');
+% plot correctness - late
+nexttile;
+histogram(Correct(idxLate));
+title('correctness - late');
+% plot volatility
+nexttile;
+histogram(resVol_mat);
+title('volatility (resVolmat)')
+% plot volatility - early
+nexttile;
+histogram(resVol_mat(idxEarly));
+title('volatility (resVolmat) - early')
+% plot volatility - late
+nexttile;
+histogram(resVol_mat(idxLate));
+title('volatility (resVolmat) - late')
+% plot zlog RT
+nexttile;
+histogram(RTz_all);
+title('zlogRT (within subject)')
+% plot zlog RT - early
+nexttile;
+histogram(RTz_all(idxEarly));
+title('zlogRT (within subject) - early')
+% plot zlog RT - late
+nexttile;
+histogram(RTz_all(idxLate));
+title('zlogRT (within subject) - late')
 
 %% ===================== PRINT SUMMARY =====================
 if DO_PRINT_SUMMARY
@@ -437,9 +491,9 @@ cfg.subjID              = subjID;
 cfg.ConfY               = ConfY;
 cfg.Correct             = Correct;
 cfg.RTz_all             = RTz_all;
-cfg.p_perf_online    = p_perf_online;
+cfg.p_perf_online       = p_perf_online;
 cfg.t_norm              = t_norm;
-cfg.resVol_mat        = resVol_mat;
+cfg.resVol_mat          = resVol_mat;
 cfg.colSub              = colSub;
 cfg.modelNames          = modelNames;
 cfg.modelSpec           = modelSpec;
@@ -453,14 +507,24 @@ cfg.fourWayLabels       = fourWayLabels;
 cfg.useSubjDummies      = useSubjDummies;
 cfg.minN_pooled         = minN_pooled;
 cfg.minN_sub            = minN_sub;
-cfg.FORCE_FIXED_MODELS  = FORCE_FIXED_MODELS;
+cfg.fixedTopIdx         = fixedTopIdx;
 cfg.fixedTopIdx         = fixedTopIdx;
 cfg.DO_PLOT_AICBIC_DOTS = DO_PLOT_AICBIC_DOTS;
 
+
 %% fit pooled models
-[~, ~, ~, early_fits] = fit_models_pooled(idxEarly, cfg);
-[~, ~, ~, late_fits] = fit_models_pooled(idxLate, cfg);
+[~, ~, ~, early_fits] = fit_models_pooled(idxEarly, early_perf, cfg);
+[~, ~, ~, late_fits] = fit_models_pooled(idxLate, p_perf_online, cfg);
 
 %% run_split_and_plot for early & late
-SelEarly = run_split_and_plot(idxEarly, 'EARLY', early_perf,    resVol_time_early, cfg);
-SelLate  = run_split_and_plot(idxLate,  'LATE',  p_perf_online, resVol_time_late,  cfg);
+run_split_and_plot_AICBIC(idxEarly, 'EARLY', early_perf, cfg);
+run_split_and_plot_AICBIC(idxLate,  'LATE',  p_perf_online, cfg);
+
+%% ---- per-subject per-bin refit ----
+% Sel = refit_models_perSubjectPerBin( ...
+    % idxSplit, ConfY, Correct, subjID, split_perf, Cz_all, RTz_all, resVol_time, t_norm, ...
+    % modelNames, modelSpec, baseLabels, ...
+    % twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
+    % topIdx, minN_sub);
+
+% SelOut = Sel;

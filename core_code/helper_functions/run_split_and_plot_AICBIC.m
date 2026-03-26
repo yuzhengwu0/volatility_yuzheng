@@ -1,19 +1,28 @@
-function SelOut = run_split_and_plot(idxSplit, splitTag, ...
-    ConfY, Correct, subjID, split_perf, Cz_all, RTz_all, resVol_time, t_norm, colSub, ...
-    modelNames, modelSpec, baseLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
-    useSubjDummies, minN_pooled, minN_sub, ...
-    FORCE_FIXED_MODELS, fixedTopIdx, DO_PLOT_AICBIC_DOTS, cfg)
+function run_split_and_plot_AICBIC(idxSplit, splitTag, split_perf, cfg)
 
 % unpack config contents to be used in the function
-%ConfY = cfg.ConfY;
-%Correct = cfg.Correct;
+ConfY = cfg.ConfY;
+Correct = cfg.Correct;
+subjID = cfg.subjID;
+RTz_all = cfg.RTz_all;
+t_norm = cfg.t_norm;
+modelNames = cfg.modelNames;
+modelSpec = cfg.modelSpec;
+baseLabels = cfg.baseLabels;
+twoWayNames = cfg.twoWayNames;
+twoWayLabels = cfg.twoWayLabels;
+threeWayNames = cfg.threeWayNames;
+threeWayLabels = cfg.threeWayLabels;
+fourWayNames = cfg.fourWayNames;
+fourWayLabels = cfg.fourWayLabels;
+DO_PLOT_AICBIC_DOTS = cfg.DO_PLOT_AICBIC_DOTS;
 
-
+cfg.splitTag = splitTag;
+fixedTopIdx = cfg.fixedTopIdx;
 
 % ---- pooled model selection ----
 [AIC_mat, BIC_mat, Pool] = fit_models_pooled( ...
-    idxSplit, cfg);
+    idxSplit, split_perf, cfg);
 
 K = size(AIC_mat, 1);
 nModels = numel(modelNames);
@@ -24,7 +33,7 @@ if DO_PLOT_AICBIC_DOTS
     [~, bestAIC_idx] = min(AIC_mat, [], 2, 'omitnan');   % K x 1
     [~, bestBIC_idx] = min(BIC_mat, [], 2, 'omitnan');   % K x 1
 
-    % Fix rows that are all NaN
+    % fix rows that are all NaN
     allNanAIC = all(isnan(AIC_mat), 2);
     allNanBIC = all(isnan(BIC_mat), 2);
 
@@ -114,23 +123,5 @@ deltaTbl = table(modelNames(:), meanDeltaAIC(:), medDeltaAIC(:), meanDeltaBIC(:)
 disp(['=== ' splitTag ' Delta AIC/BIC summary ===']);
 disp(deltaTbl);
 
-% ---- choose top models ----
-if FORCE_FIXED_MODELS
-    topIdx = fixedTopIdx(:);
-else
-    score = mean([meanDeltaAIC(:), medDeltaAIC(:), meanDeltaBIC(:), medDeltaBIC(:)], 2, 'omitnan');
-    [~, rankIdx] = sort(score, 'ascend', 'MissingPlacement','last');
-    rankIdx = rankIdx(~isnan(score(rankIdx)));
-    N_TOP = 2;
-    topIdx = rankIdx(1:min(N_TOP, numel(rankIdx)));
-end
 
-% ---- per-subject per-bin refit ----
-Sel = refit_models_perSubjectPerBin( ...
-    idxSplit, ConfY, Correct, subjID, split_perf, Cz_all, RTz_all, resVol_time, t_norm, ...
-    modelNames, modelSpec, baseLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels, fourWayNames, fourWayLabels, ...
-    topIdx, minN_sub);
-
-SelOut = Sel;
 end
