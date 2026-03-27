@@ -47,6 +47,12 @@
 
 clear; clc; close all;
 
+%% ===================== 0. Add toolboxes =====================
+addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/RPF-main'));
+addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/Palamedes1'));
+addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/boundedline-pkg-master'));
+RPF_check_toolboxes;
+
 %% ===================== PLOT SWITCH =====================
 DO_PLOT_BIG_FIGURE = false;
 DO_PLOT_QUARTER_BAR = false;
@@ -55,19 +61,15 @@ DO_PLOT_AICBIC_DOTS  = true;
 useSubjDummies = false;
 
 DO_SPLIT_COH = false;
-LOW_COH_VALUES = [128, 256, 512];
+LOW_COH_VALUES = [0, 32, 64];
+HIGH_COH_VALUES = [128, 256, 512];
 
 QUARTER_MODEL_MODE = 'manual';      % 'top1' or 'manual'
 QUARTER_MODEL_NAME = 'M7_all2';   % only used if QUARTER_MODEL_MODE = 'manual'
 QUARTER_TERM_NAME  = 'vol';       % e.g. 'vol','rt','PxV','VxC','RxV','PxVxC'
 
-%% ===================== 0. Add toolboxes =====================
-addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/RPF-main'));
-addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/Palamedes1'));
-addpath(genpath('/Users/wuyuzheng/Documents/MATLAB/toolbox/boundedline-pkg-master'));
-RPF_check_toolboxes;
-
 %% ===================== 1. Load data =====================
+addpath('helper_functions/');
 data_path = '../all_with_me.mat';
 tmp       = load(data_path, 'all');
 allStruct = tmp.all;
@@ -79,12 +81,12 @@ confCont_all  = allStruct.confidence(:);      % 0-1
 vol_all       = allStruct.rdm1_coh_std(:);
 subjID_all    = allStruct.group(:);
 ME_cell_all   = allStruct.motion_energy;
+rt_all        = allStruct.rt(:);
 
 valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ...
-              ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all);
+    ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
 
 valid_conf = (confCont_all >= 0) & (confCont_all <= 1);
-valid      = valid_basic & valid_conf;
 
 % ===== try low coh here =====
 if DO_SPLIT_COH
@@ -106,7 +108,6 @@ else
     fprintf('Keeping ALL coh trials.\n');
 end
 
-
 fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
     sum(valid_basic & ~valid_conf), ...
     100*sum(valid_basic & ~valid_conf)/max(1,sum(valid_basic)));
@@ -118,6 +119,7 @@ confCont      = confCont_all(valid);
 vol           = vol_all(valid);
 subjID        = subjID_all(valid);
 motion_energy = ME_cell_all(valid);
+rt            = rt_all(valid);
 
 nTrials = numel(coh);
 fprintf('Total valid trials: %d\n', nTrials);
@@ -125,7 +127,7 @@ fprintf('Total valid trials: %d\n', nTrials);
 %% ===================== 1.5 Transform confidence =====================
 
 % ===================== Z-SCORE CONFIDENCE =====================
-% Conf = double(confCont >= thConf); %#ok<NASGU> 
+% Conf = double(confCont >= thConf); %#ok<NASGU>
 
 ConfY = nan(size(confCont));
 subj_list = unique(subjID);
@@ -146,6 +148,10 @@ for iSub = 1:nSubj
     else
         ConfY(idxS) = (y - mu) ./ sigma;
     end
+
+    % z-score RT within subject
+    rt_sub = rt(idxS);
+    rtX(idxS) = zscore(log(rt_sub));
 end
 
 %% ===================== 2. Map volatility to condition index =====================
@@ -236,8 +242,8 @@ for iSub = 1:nSubj
         combination_counter(iSub, combo_idx) = combination_counter(iSub, combo_idx) + 1;
 
         % (4) update performance estimate for this combination
-          combination_performance(iSub, combo_idx) = combination_performance(iSub, combo_idx) + this_correct;
-          p_perf_online(tr) = combination_performance(iSub, combo_idx) / combination_counter(iSub, combo_idx);
+        combination_performance(iSub, combo_idx) = combination_performance(iSub, combo_idx) + this_correct;
+        p_perf_online(tr) = combination_performance(iSub, combo_idx) / combination_counter(iSub, combo_idx);
     end
 end
 
@@ -326,6 +332,7 @@ end
 
 mu_all = mean(resVol_mat(:), 'omitnan');
 sd_all = std(resVol_mat(:),  'omitnan');
+% z-score resVol_mat to turn it into resVol_time
 resVol_time = (resVol_mat - mu_all) ./ sd_all;
 
 fprintf('Residual volatility matrix: %d trials x %d bins\n', size(resVol_time,1), size(resVol_time,2));
@@ -335,7 +342,7 @@ eps0   = 1e-4;
 p_clip = min(max(p_perf_all, eps0), 1-eps0); % question for megan: what is happening here? and why?
 Fp_all = (p_clip - mean(p_clip,'omitnan')) ./ std(p_clip,'omitnan');
 
-Cz_all = Correct - mean(Correct,'omitnan');
+Cz_all = Correct;
 
 % plot predictors & outcome variable
 tiledlayout;
@@ -370,77 +377,17 @@ title('volatility (resVoltime)')
 
 
 %% ===================== 6. Define model family =====================
-[~, K] = size(resVol_time);
-minN = 50;
 
-baseLabels = {'b0 (Intercept)'};
+[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_v2();
 
-oneWayNames = ["perf","corr","vol"];
-oneWayLabels = {'b_{perf}','b_{corr}','b_{vol}'};
-
-twoWayNames  = ["PxC","PxV","VxC"];
-twoWayLabels = {'b_{perf×corr}','b_{perf×vol}', ...
-                'b_{vol×corr}'};
-
-threeWayNames  = "PxVxC";
-threeWayLabels = {'b_{perf×vol×corr}'};
-
-modelNames = {};
-modelSpec  = struct('use1',{},'use2',{},'use3',{});
-
-% M0
-idx = numel(modelNames)+1;
-modelNames{idx}      = 'M0_base';
-modelSpec(idx).use1  = false(1,3);
-modelSpec(idx).use2  = false(1,3);
-modelSpec(idx).use3  = false;
-
-% M1-M3
-for ii = 1:numel(oneAtATime)
-    j = oneAtATime(ii);
-    idx = numel(modelNames)+1;
-    modelNames{idx}      = sprintf('M%d_1way_%s', ii, oneWayNames(j));
-    modelSpec(idx).use1  = false(1,3);
-    modelSpec(idx).use1(j) = true;
-    modelSpec(idx).use2  = false(1,3);
-    modelSpec(idx).use3  = false;
-end
-
-% M4
-idx = numel(modelNames)+1;
-modelNames{idx}      = 'M4_1way_all';
-modelSpec(idx).use1  = true(1,3);
-modelSpec(idx).use2  = false(1,3);
-modelSpec(idx).use3  = false;
-
-% M5-M7
-for ii = 1:numel(oneAtATime)
-    j = oneAtATime(ii);
-    idx = numel(modelNames)+1;
-    modelNames{idx}      = sprintf('M%d_2way_%s', 4+ii, twoWayNames(j));
-    modelSpec(idx).use1  = true(1,3);
-    modelSpec(idx).use2  = false(1,3);
-    modelSpec(idx).use2(j) = true;
-    modelSpec(idx).use3  = false;
-end
-
-% M8
-idx = numel(modelNames)+1;
-modelNames{idx}      = 'M8_2way_all';
-modelSpec(idx).use1  = true(1,3);
-modelSpec(idx).use2  = true(1,3);
-modelSpec(idx).use3  = false;
-
-% M9
-idx = numel(modelNames)+1;
-modelNames{idx}      = 'M9_3way_all';
-modelSpec(idx).use1  = true(1,3);
-modelSpec(idx).use2  = true(1,3);
-modelSpec(idx).use3  = true;
-
+% [modelNames, modelSpec, baseLabels, withcohNames, withcohLabels, oneWayNames, oneWayLabels, ...
+%     twoWayNames, twoWayLabels, nocohNames, nocohLabels, threeWayNames, threeWayLabels] = build_model_family_no_rt_withCorrect();
 nModels = numel(modelNames);
 
 %% ===================== 7. Fit all models for AIC/BIC =====================
+minN = 50;
+[~, K] = size(resVol_time);
 AIC_mat  = nan(K, nModels);
 BIC_mat  = nan(K, nModels);
 Nobs_mat = nan(K, nModels);
@@ -448,28 +395,31 @@ Nobs_mat = nan(K, nModels);
 Models = struct();
 Fitted_models = struct();
 
+coh_weuse = coh/100;
+z_coh = zscore(coh);
+z_perf = zscore(p_perf_all);
+
 for m = 1:nModels
-%for m = 7
+    %for m = 7
     fprintf('\n=== Fitting %s ===\n', modelNames{m});
 
     labels       = baseLabels;
     coefVarNames = "(Intercept)";
 
-    for j = 1:3
+    for j = 1:2 % iterate over models that use just one predictor in addition to baseline
         if modelSpec(m).use1(j)
             labels{end+1} = oneWayLabels{j};
             coefVarNames(end+1) = oneWayNames(j);
         end
     end
-    
-    for j = 1:3
+
+    for j = 1 % iterate over models that use an interaction between 2 predictors
         if modelSpec(m).use2(j)
-            labels{end+1} = twoWayLabels{j};
-            coefVarNames(end+1) = twoWayNames(j);
+            f = f + " + " + twoWayNames(j);
         end
     end
-    
-    if modelSpec(m).use3
+
+    if modelSpec(m).use3 % iterate over models that use an interaction among 3 predictors
         labels{end+1} = threeWayLabels{1};
         coefVarNames(end+1) = threeWayNames;
     end
@@ -482,69 +432,70 @@ for m = 1:nModels
         Vk = resVol_time(:,k);
 
         mask = ~isnan(Vk) & ~isnan(ConfY) & ~isnan(Correct) & ...
-               ~isnan(p_perf_online) & ~isnan(subjID);
+            ~isnan(p_perf_online) & ~isnan(subjID) & ~isnan(coh);
 
         if sum(mask) < minN, continue; end
 
         y    = ConfY(mask);
-        %P    = Fp_all(mask);
-        %P = p_perf_all(mask);
-       % C = categorical(Correct(mask));
-        %C    = Cz_all(mask);
-        P = p_perf_online(mask);
+        coh_weuse = z_coh(mask);
+        P = z_perf(mask);
         C = Correct(mask);
-        Vraw = Vk(mask);
-        %R    = RTz_all(mask);
+        V = Vk(mask);
+        R    = rtX(mask);
+        R = R';
         sID  = subjID(mask);
 
-        sv = std(Vraw);
-        if sv < 1e-12, continue; end
-        V = (Vraw - mean(Vraw)) ./ sv;
+        % sv = std(V);
+         %if sv < 1e-12, continue; end
+         %V = (V - mean(V)) ./ sv;
 
-        PxC = P.*C; PxV = P.*V; VxC = V.*C; 
-
-        PxVxC   = P.*V.*C;
+        % build predictors
+        PxC = P.*C;  % predicted performance * accuracy
+        PxV = P.*V;  % predicted performance * volatility
+        VxC = V.*C;  % accuracy * volatility
+        PxVxC   = P.*V.*C; % predicted performance * volatility * accuracy
 
         if useSubjDummies
             S2 = double(sID==2);
             S3 = double(sID==3);
 
-            T = table(y,P,C,V,PxC,PxV,VxC,PxVxC,S2,S3, ...
-                'VariableNames', {'ConfY','perf','corr','vol', ...
+            T = table(y,R,coh_weuse,P,C,V,PxC,PxV,VxC,PxVxC,S2,S3, ...
+                'VariableNames', {'ConfY','R','coh','P','C','V', ...
                 'PxC','PxV','VxC',...
                 'PxVxC','S2','S3'});
         else
-            T = table(y,P,C,V,PxC,PxV,VxC,PxVxC, ...
-                'VariableNames', {'ConfY','perf','corr','vol', ...
+            T = table(y,R,coh_weuse,P,C,V,PxC,PxV,VxC,PxVxC, ...
+                'VariableNames', {'ConfY', 'R','coh','P','C','V', ...
                 'PxC','PxV','VxC', ...
-                'PxVxC'});
+                'PxVxcoh'});
         end
 
-        f = "ConfY ~ 1";
+        f = "ConfY ~ 1 + C + R + coh";
 
-        for j = 1:3
+        for j = 1:2 % make this the number of one-way models
             if modelSpec(m).use1(j)
                 f = f + " + " + oneWayNames(j);
             end
         end
-        
-        for j = 1:3
+
+        for j = 1 % make this the number of two-way models
             if modelSpec(m).use2(j)
                 f = f + " + " + twoWayNames(j);
             end
         end
-        
+
         if modelSpec(m).use3
+            f = "ConfY ~ 1 + R + C + P + V + PxV";
             f = f + " + " + threeWayNames;
         end
-        
+
         if useSubjDummies
             f = f + " + S2 + S3";
         end
 
         try
             g = fitglm(T, f, 'Distribution','normal');
-        
+
         catch ME
             fprintf('fitglm failed | model=%s | bin=%d\n', modelNames{m}, k);
             fprintf('%s\n', ME.message);
@@ -565,7 +516,7 @@ for m = 1:nModels
             hit = find(coefNames == nm, 1, 'first');
             if ~isempty(hit)
                 betas(k,tt) = coefEst(hit);
-                beta_ses(k, tt)   = coefSE(hit);   
+                beta_ses(k, tt)   = coefSE(hit);
             end
         end
     end
@@ -574,7 +525,7 @@ for m = 1:nModels
     Models(m).labels       = labels;
     Models(m).coefVarNames = coefVarNames;
     Models(m).betas        = betas;
-    Models(m).beta_ses          = beta_ses;  
+    Models(m).beta_ses          = beta_ses;
 end
 
 %% ===================== 8. Rank models by composite AIC/BIC score =====================
@@ -601,7 +552,7 @@ score = mean([ ...
     medDeltaAIC(:), ...
     meanDeltaBIC(:), ...
     medDeltaBIC(:) ...
-], 2, 'omitnan');
+    ], 2, 'omitnan');
 
 [~, rankIdx] = sort(score, 'ascend', 'MissingPlacement','last');
 rankIdx = rankIdx(~isnan(score(rankIdx)));
@@ -728,7 +679,7 @@ if DO_PLOT_QUARTER_BAR
         Vq_raw = mean(resVol_time(:, bins_here), 2, 'omitnan');
 
         mask = ~isnan(Vq_raw) & ~isnan(ConfY) & ~isnan(Correct) & ...
-               ~isnan(p_perf_online) & ~isnan(subjID) & ~isnan(rtX);
+            ~isnan(p_perf_online) & ~isnan(subjID) & ~isnan(rtX);
 
         if sum(mask) < minN
             fprintf('Quarter %s skipped: not enough trials.\n', qLabels{q});
@@ -902,7 +853,7 @@ for ii = 1:numel(modelIdxToRefit)
             Vk = resVol_time(:,k);
 
             mask = ~isnan(Vk) & ~isnan(ConfY) & ~isnan(Correct) & ...
-                   ~isnan(Fp_all) & ~isnan(subjID) & ~isnan(rt);
+                ~isnan(Fp_all) & ~isnan(subjID) & ~isnan(rt);
             mask = mask & (subjID == thisSub);
 
             if sum(mask) < minN_sub, continue; end
@@ -1002,7 +953,7 @@ if DO_PLOT_BIG_FIGURE
         'b_{perf×vol×rt}', ...
         'b_{vol×corr×rt}', ...
         'b_{perf×vol×corr×rt}' ...
-    };
+        };
 
     plot_bigfigure_top4_allTerms(SelOrdered, t_norm, colSub, outPDF, termListVol, figTitle);
 end
@@ -1182,7 +1133,7 @@ for r = 1:nRows
         end
         lastAxPerCol(c) = ax;
 
-        
+
         beta_sub = Sel(c).beta_sub(:,:,tt);
         se_sub   = Sel(c).se_sub(:,:,tt);
 
@@ -1204,11 +1155,11 @@ for r = 1:nRows
                 'HandleVisibility','off');
         end
 
-        % mean ± SEM (original ver. average of three subjects 
+        % mean ± SEM (original ver. average of three subjects
         % and SE here is the difference between three subjects)
         % yMean = mean(beta_sub,1,'omitnan');
         % ySEM  = std(beta_sub,0,1,'omitnan') ./ sqrt(nSubj);
-        % 
+        %
         % okm = ~isnan(yMean) & ~isnan(ySEM);
         % if sum(okm) >= 2
         %     xx = x(okm); ym = yMean(okm); es = ySEM(okm);
@@ -1220,7 +1171,7 @@ for r = 1:nRows
         % pooled line ± pooled SE
         yPool = Sel(c).beta_pool(:,tt)';
         ePool = Sel(c).se_pool(:,tt)';
-        
+
         okm = ~isnan(yPool) & ~isnan(ePool);
         if sum(okm) >= 2
             xx = x(okm); ym = yPool(okm); es = ePool(okm);
