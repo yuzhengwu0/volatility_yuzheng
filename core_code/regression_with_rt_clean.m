@@ -49,9 +49,14 @@
 clear; clc; close all;
 
 %% ===================== PLOT SWITCH =====================
-DO_PLOT_BIG_FIGURE = true;
-DO_PLOT_QUARTER_BAR = true;
-DO_PLOT_AICBIC_DOTS  = false;
+DO_PLOT_BIG_FIGURE = false;
+DO_PLOT_QUARTER_BAR = false;
+DO_PLOT_AICBIC_DOTS  = true;
+
+useSubjDummies = false;
+
+DO_SPLIT_COH = true;
+LOW_COH_VALUES = [128, 256, 512];
 
 QUARTER_MODEL_MODE = 'manual';      % 'top1' or 'manual'
 QUARTER_MODEL_NAME = 'M7_all2';   % only used if QUARTER_MODEL_MODE = 'manual'
@@ -82,6 +87,27 @@ valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ...
 
 valid_conf = (confCont_all >= 0) & (confCont_all <= 1);
 valid      = valid_basic & valid_conf;
+
+% ===== try low coh here =====
+if DO_SPLIT_COH
+    valid_coh = ismember(coh_all, LOW_COH_VALUES);
+else
+    valid_coh = true(size(coh_all));
+end
+
+valid = valid_basic & valid_conf & valid_coh;
+
+fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
+    sum(valid_basic & ~valid_conf), ...
+    100 * sum(valid_basic & ~valid_conf) / max(1, sum(valid_basic)));
+
+if DO_SPLIT_COH
+    fprintf('Dropped by coh filter: %d trials\n', sum(valid_basic & valid_conf & ~valid_coh));
+    fprintf('Keeping LOW coh only.\n');
+else
+    fprintf('Keeping ALL coh trials.\n');
+end
+
 
 fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
     sum(valid_basic & ~valid_conf), ...
@@ -366,7 +392,6 @@ title('zlogRT (within subject)')
 %% ===================== 6. Define model family =====================
 [~, K] = size(resVol_time);
 minN = 50;
-useSubjDummies = false;
 
 baseLabels = {'b0 (Intercept)','b_{perf}','b_{corr}','b_{vol}','b_{rt}'};
 
