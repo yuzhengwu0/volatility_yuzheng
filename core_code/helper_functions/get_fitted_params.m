@@ -1,4 +1,4 @@
-models = [5];
+models = [3];
 
 for model = 1:length(models)
     m = models(model);
@@ -14,7 +14,7 @@ for model = 1:length(models)
 end
 
 %% plot beta timecourses from interaction model
-coef_names
+coef_names;
 figure;
 hold on
 yline(0, 'HandleVisibility', 'off')
