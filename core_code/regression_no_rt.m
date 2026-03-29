@@ -55,8 +55,8 @@ RPF_check_toolboxes;
 
 %% ===================== SWITCH =====================
 % plot
-DO_PLOT_BIG_FIGURE = true;
-DO_PLOT_AICBIC_DOTS  = false;
+DO_PLOT_BIG_FIGURE = false;
+DO_PLOT_AICBIC_DOTS  = true;
 DO_PLOT_QUARTER_BAR = false;
 
 useSubjDummies = false;
@@ -66,16 +66,17 @@ DO_SPLIT_COH = false; %coh
 LOW_COH_VALUES = [0, 32, 64];
 HIGH_COH_VALUES = [128, 256, 512];
 DO_USE_RT = true; % RT
-P_PERF_MODE = 'all'; % perf: 'all' or 'online' or 'try'
+P_PERF_MODE = 'online'; % perf: 'all' or 'online' or 'try'
 % parameters for resVol
 nBins = 50;
 winLen = 10;
-tol    = 1e-7;
+tol    = 1e-12;
 
 %% ===================== 1. Load data =====================
 addpath('helper_functions/');
 addpath('helper_functions/data_prep/')
 addpath('helper_functions/fit_model/')
+addpath('helper_functions/plot/')
 data_path = '../all_with_me.mat';
 tmp       = load(data_path, 'all');
 allStruct = tmp.all;
@@ -148,6 +149,9 @@ end
 coh_weuse = coh/100;
 z_coh = zscore(coh_weuse);
 
+% z-scored volatility condition 
+z_cond = zscore(cond);
+
 % SUMMARY!!!
 % for later on anaysis we are using:
 % ConfY (z-scored, n * 1)
@@ -172,7 +176,7 @@ title('confidence z-scored within subject');
 nexttile;
 histogram(p_perf_all);
 title('p perf all');
-% plot "online" performance term
+plot "online" performance term
 nexttile; 
 histogram(p_perf_online); 
 title('p perf online'); 
@@ -184,14 +188,48 @@ title('correctness');
 nexttile;
 histogram(resVol);
 title('z scored volatility (resVol)')
+% plot coherence
+nexttile;
+histogram(coh);
+title('z scored volatility (resVol)')
 % resVol check histogram
 figure;
 resVol_check;
 
 %% ===================== 3. Define model family =====================
-% run this to build model family
+% run this to build model family and change the family model by un-comment
+
+% model family 1:
+% fixed terms: RT (R), accuracy (C), coherence (coh)
+% M0: baseline + R + C + coh
+% M1: baseline + R + C + coh + P
+% M2: baseline + R + C + coh + V
+% M3: baseline + R + C + coh + P + V
+% M4: baseline + R + C + coh + P + V + P*V
+% M5: baseline + R + C + P + V + P*V + P*V*coh
+% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_coh();
+
+% model family 2:
+% fixed terms: RT (R), accuracy (C), coherence (coh), vol condition (z_cond)
+% M0: baseline + R + C + coh + z_cond
+% M1: baseline + R + C + coh + z_cond + P
+% M2: baseline + R + C + coh + z_cond + V
+% M3: baseline + R + C + coh + z_cond + P + V
+% M4: baseline + R + C + coh + z_cond + P + V + P*V
+% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_zcond();
+
+% model family 3:
+% fixed terms: RT (R), accuracy (C), coherence (coh)
+% M0: baseline + R + C + coh
+% M1: baseline + R + C + coh + P
+% M2: baseline + R + C + coh + V
+% M3: baseline + R + C + coh + P + V
+% M4: baseline + R + C + coh + P + V + P*V
+% M5: baseline + R + C + coh + P + V + C*V
 [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_coh();
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_corr();
 
 % [modelNames, modelSpec, baseLabels, withcohNames, withcohLabels, oneWayNames, oneWayLabels, ...
 %     twoWayNames, twoWayLabels, nocohNames, nocohLabels, threeWayNames, threeWayLabels] = build_model_family_no_rt_withCorrect();
@@ -203,10 +241,10 @@ cfg = struct();
 cfg.ConfY = ConfY;
 cfg.Correct = Correct;
 cfg.subjID = subjID;
-cfg.coh = coh;
 cfg.z_coh = z_coh;
 cfg.z_perf = z_perf;
 cfg.rtX = rtX;
+cfg.z_cond = z_cond;
 
 cfg.resVol = resVol;
 cfg.nModels = nModels;
@@ -224,14 +262,11 @@ cfg.useSubjDummies = useSubjDummies;
 cfg.minN = 50;
 
 cfg.DO_PLOT_AICBIC_DOTS = DO_PLOT_AICBIC_DOTS;
-cfg.QUARTER_MODEL_MODE = QUARTER_MODEL_MODE;
-cfg.QUARTER_MODEL_NAME = QUARTER_MODEL_NAME;
-cfg.QUARTER_TERM_NAME = QUARTER_TERM_NAME;
 cfg.outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
 
 %% ===================== 4. Fit all models for AIC/BIC =====================
 % run this to fit model in the model family
-[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_coh(cfg);
+[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_corr(cfg);
 cfg.Fitted_models = Fitted_models;
 
 %% ===================== 5. Rank models by composite AIC/BIC score and dot plot =====================
@@ -253,6 +288,9 @@ end
 QUARTER_MODEL_MODE = 'top1';      % 'top1' or 'manual'
 QUARTER_MODEL_NAME = 'M2_V';   % only used if QUARTER_MODEL_MODE = 'manual'
 QUARTER_TERM_NAME  = 'PxV';       % e.g. 'V','R','C','coh','PxV','VxC','RxV','PxVxC'...
+cfg.QUARTER_MODEL_MODE = QUARTER_MODEL_MODE;
+cfg.QUARTER_MODEL_NAME = QUARTER_MODEL_NAME;
+cfg.QUARTER_TERM_NAME = QUARTER_TERM_NAME;
 
 % plot
 if DO_PLOT_QUARTER_BAR
