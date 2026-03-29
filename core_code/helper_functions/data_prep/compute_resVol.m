@@ -1,7 +1,31 @@
-function resVol_mat = compute_resVol_time(motion_energy, nBins, winLen, tol)
+function [resVol_mat, resVol, cond] = compute_resVol(motion_energy, vol, nBins, winLen, tol)
 % Compute residual volatility across all trials
+% Also recode volatility into cond:
+%   low vol  -> cond = 1
+%   high vol -> cond = 2
+%
+% Outputs:
+%   resVol_mat  : raw residual volatility (trial x time bin)
+%   resVol_time : z-scored residual volatility across all trials and bins
+%   cond        : recoded volatility condition
 
 nTrials = numel(motion_energy);
+
+if numel(vol) ~= nTrials
+    error('vol must have the same number of trials as motion_energy.');
+end
+
+%% ===================== Recode volatility to cond =====================
+vol_levels = unique(vol(~isnan(vol)));
+if numel(vol_levels) ~= 2
+    warning('Volatility levels are not 2. Check your data!');
+end
+
+cond = nan(size(vol));
+cond(vol == min(vol_levels)) = 1;
+cond(vol == max(vol_levels)) = 2;
+
+%% ===================== Compute evidence / volatility strength =====================
 evidence_strength   = cell(nTrials, 1);
 volatility_strength = cell(nTrials, 1);
 
@@ -30,7 +54,7 @@ for tr = 1:nTrials
         continue;
     end
 
-    nWin  = nFrames - winLen + 1; % how many windows we can get
+    nWin  = nFrames - winLen + 1;
     m_win = nan(1, nWin); 
     s_win = nan(1, nWin);
 
@@ -45,28 +69,30 @@ for tr = 1:nTrials
     volatility_strength{tr} = s_win;
 end
 
-t_norm = linspace(0, 1, nBins); % do timebin
+%% ===================== Time normalization =====================
+t_norm = linspace(0, 1, nBins);
 
-MEAN_norm = nan(nTrials, nBins); % save mean alltrials x alltimebin
-STD_norm  = nan(nTrials, nBins); % save std alltrials x alltimebin
+MEAN_norm = nan(nTrials, nBins);
+STD_norm  = nan(nTrials, nBins);
 
 for tr = 1:nTrials
     mu_tr = evidence_strength{tr};
     sd_tr = volatility_strength{tr};
-    if isempty(mu_tr) || isempty(sd_tr), continue; end
 
-    % avoid error
+    if isempty(mu_tr) || isempty(sd_tr)
+        continue;
+    end
+
     nWin_tr = min(numel(mu_tr), numel(sd_tr)); 
     mu_tr   = mu_tr(1:nWin_tr);
     sd_tr   = sd_tr(1:nWin_tr);
 
-    % do linear interpolation within 0-1, time normalization
     t_orig = linspace(0, 1, nWin_tr);
     MEAN_norm(tr,:) = interp1(t_orig, mu_tr, t_norm, 'linear');
     STD_norm(tr,:)  = interp1(t_orig, sd_tr, t_norm, 'linear');
 end
 
-% calculate residual (remove mean effect) vol for each time bin
+%% ===================== Residual volatility =====================
 resVol_mat = nan(size(STD_norm));
 
 for b = 1:nBins
@@ -78,18 +104,25 @@ for b = 1:nBins
         continue;
     end
 
-    % set a regression here, remove the part of volatility can be
-    % explained by strength
-    % --> y (motion energy) ~ beta0 + beta1 * evidence strength
     Xb    = [ones(sum(mask_b),1), x1(mask_b)];
     y_use = y(mask_b);
 
     beta  = Xb \ y_use;
-    resid = y_use - Xb * beta; % raw vol - the part can be explained
+    resid = y_use - Xb * beta;
 
-    % save in nTrials x bins format
     tmpv = nan(size(y));
     tmpv(mask_b) = resid;
     resVol_mat(:, b) = tmpv;
 end
+
+%% ===================== Z-score residual volatility =====================
+mu_all = mean(resVol_mat(:), 'omitnan');
+sd_all = std(resVol_mat(:),  'omitnan');
+
+if sd_all == 0 || isnan(sd_all)
+    resVol = zeros(size(resVol_mat));
+else
+    resVol = (resVol_mat - mu_all) ./ sd_all;
+end
+
 end
