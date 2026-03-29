@@ -1,4 +1,4 @@
-models = [3];
+models = [6];
 
 for model = 1:length(models)
     m = models(model);
