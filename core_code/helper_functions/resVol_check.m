@@ -5,7 +5,6 @@
 vol_bool = vol~=0; % 0 = low volatility; 1 = high volatility
 coh_levels = unique(coh);
 vol_levels = unique(vol_bool);
-resVol_z = zscore(resVol_mat);
 
 %% two volatility levels on each subplot
 vol_string = {'low', 'high'};
@@ -19,7 +18,7 @@ for i = 1:length(coh_levels)
         v = vol_levels(j);
         v_string = vol_string{v+1};
         mask = vol_bool == v & coh == c;
-        histogram(resVol_z(mask), 'FaceColor', colors{j}, 'BinWidth', 0.25);
+        histogram(resVol(mask), 'FaceColor', colors{j}, 'BinWidth', 0.25);
         %histogram(resVol(mask), 'FaceColor', colors{j}, 'BinWidth', 1e-6);
         %histogram(resVol_mat(mask), 'FaceColor', colors{j}, 'BinWidth', 0.00001);
         title(sprintf('coh = %.2f', c/100));
