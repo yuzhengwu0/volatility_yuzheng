@@ -55,21 +55,30 @@ RPF_check_toolboxes;
 
 %% ===================== PLOT SWITCH =====================
 DO_PLOT_BIG_FIGURE = false;
-DO_PLOT_QUARTER_BAR = false;
 DO_PLOT_AICBIC_DOTS  = true;
 
 useSubjDummies = false;
 
-DO_SPLIT_COH = false;
+% predictors 
+DO_SPLIT_COH = false; %coh
 LOW_COH_VALUES = [0, 32, 64];
 HIGH_COH_VALUES = [128, 256, 512];
+DO_USE_RT = true; % RT
+P_PERF_MODE = 'all'; % perf: 'all' or 'online' or 'try'
+% parameters for resVol
+nBins = 50;
+winLen = 10;
+tol    = 1e-12;
 
+DO_PLOT_QUARTER_BAR = false;
 QUARTER_MODEL_MODE = 'manual';      % 'top1' or 'manual'
 QUARTER_MODEL_NAME = 'M7_all2';   % only used if QUARTER_MODEL_MODE = 'manual'
 QUARTER_TERM_NAME  = 'vol';       % e.g. 'vol','rt','PxV','VxC','RxV','PxVxC'
 
 %% ===================== 1. Load data =====================
 addpath('helper_functions/');
+addpath('helper_functions/data_prep/')
+addpath('helper_functions/fit_model/')
 data_path = '../all_with_me.mat';
 tmp       = load(data_path, 'all');
 allStruct = tmp.all;
@@ -90,27 +99,12 @@ valid_conf = (confCont_all >= 0) & (confCont_all <= 1);
 
 % ===== try low coh here =====
 if DO_SPLIT_COH
-    valid_coh = ismember(coh_all, LOW_COH_VALUES);
+    valid_coh = ismember(coh_all, LOW_COH_VALUES); %change here if we want to change to high coh trials
 else
     valid_coh = true(size(coh_all));
 end
 
 valid = valid_basic & valid_conf & valid_coh;
-
-fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
-    sum(valid_basic & ~valid_conf), ...
-    100 * sum(valid_basic & ~valid_conf) / max(1, sum(valid_basic)));
-
-if DO_SPLIT_COH
-    fprintf('Dropped by coh filter: %d trials\n', sum(valid_basic & valid_conf & ~valid_coh));
-    fprintf('Keeping LOW coh only.\n');
-else
-    fprintf('Keeping ALL coh trials.\n');
-end
-
-fprintf('Dropped by conf out-of-range: %d trials (%.2f%% of basic-valid)\n', ...
-    sum(valid_basic & ~valid_conf), ...
-    100*sum(valid_basic & ~valid_conf)/max(1,sum(valid_basic)));
 
 coh           = coh_all(valid);
 resp          = resp_all(valid);
@@ -124,226 +118,49 @@ rt            = rt_all(valid);
 nTrials = numel(coh);
 fprintf('Total valid trials: %d\n', nTrials);
 
-%% ===================== 1.5 Transform confidence =====================
+%% ===================== 2. Cleaning Data =====================
+% prep z_score confidence 
+ConfY = transform_conf(confCont, subjID);
 
-% ===================== Z-SCORE CONFIDENCE =====================
-% Conf = double(confCont >= thConf); %#ok<NASGU>
-
-ConfY = nan(size(confCont));
-subj_list = unique(subjID);
-nSubj = numel(subj_list);
-
-for iSub = 1:nSubj
-    s = subj_list(iSub);
-    idxS = subjID == s;
-
-    y = confCont(idxS);
-
-    % z-score confidence within subject
-    mu = mean(y, 'omitnan');
-    sigma = std(y, 'omitnan');
-
-    if sigma == 0
-        ConfY(idxS) = zeros(size(y));
-    else
-        ConfY(idxS) = (y - mu) ./ sigma;
-    end
-
-    % z-score RT within subject
-    rt_sub = rt(idxS);
-    rtX(idxS) = zscore(log(rt_sub));
+% prep z-score RT
+if DO_USE_RT
+    rtX = transform_rt(rt, subjID);
+else
+    rtX = [];
 end
 
-%% ===================== 2. Map volatility to condition index =====================
-vol_levels = unique(vol);
-if numel(vol_levels) ~= 2
-    warning('Volatility levels are not 2. Check your data!');
+% prep z-scored residual volatility (resVol)
+[resVol_mat, resVol, cond] = compute_resVol(motion_energy, vol, nBins, winLen, tol);
+
+% prep predicted performance
+switch P_PERF_MODE
+    case 'all'
+        p_perf_all = compute_p_perf_all(subjID, cond, coh, Correct);
+        z_perf = zscore(p_perf_all);
+    case 'online'
+        p_perf_online = compute_p_perf_online(subjID, cond, coh, Correct);
+        z_perf = zscore(p_perf_online);
+    case 'try' % if we want to see the distribution plot we can do all of them together, but usually do one at a time to avoid error
+        p_perf_all = compute_p_perf_all(subjID, cond, coh, Correct);
+        p_perf_online = compute_p_perf_online(subjID, cond, coh, Correct);
 end
 
-cond = nan(size(vol));
-cond(vol == min(vol_levels)) = 1;
-cond(vol == max(vol_levels)) = 2;
+% accuracy --> we use correct directly
 
-%% ===================== 3. Subject × volatility × coherence mean accuracy =====================
-p_perf_all = nan(nTrials,1);
+% coherence
+coh_weuse = coh/100;
+z_coh = zscore(coh_weuse);
 
-% get unique values of condition (low or high volatility) x coherence
-cond_list = unique(cond(~isnan(cond)));
-coh_list  = unique(coh(~isnan(coh)));
-total_combinations = length(cond_list) * length(coh_list);
+% SUMMARY!!!
+% for later on anaysis we are using:
+% ConfY (z-scored, n * 1)
+% rtX (z-scored, n * 1)
+% resVol (z-scored, n * nBins)
+% p_perf_all/p_perf_online (z-scored, n * 1)
+% coh
+% Correct (raw accuracy (0/1), n * 1)
 
-for iSub = 1:nSubj
-    thisSub = subj_list(iSub);
-
-    for c = cond_list(:)'
-        for h = coh_list(:)'
-            mask = (subjID == thisSub) & (cond == c) & (coh == h);
-            nTrials_sub = sum(mask);
-
-            if any(mask)
-                p_perf_all(mask) = mean(Correct(mask), 'omitnan');
-            end
-        end
-    end
-end
-
-fprintf('Finished subject × volatility × coherence mean accuracy. Valid proportion: %.3f\n', ...
-    mean(~isnan(p_perf_all)));
-
-%% compute accuracy as a function of trial in the decision task %%%%%%%%%%%
-
-% initialize variables to store performance estimates
-p_perf_online = zeros(nTrials, 1);
-p_perf_online(:) = 0.5;
-
-% initialize counters for keeping track of trials: 12 combinations total
-% column1: cond_list == cond_list(1) & coh_list == coh_list(1)
-% column2: cond_list == cond_list(1) & coh_list == coh_list(2)
-% .... through coh_list == coh_list(6)
-% column7: cond_list == cond_list(2) & coh_list==coh_list(1)
-% and so on...
-
-combination_counter = zeros(nSubj, total_combinations);
-combination_performance = combination_counter;
-combination_counter(:) = 2;      % 2 pseudo-trials to anchor at chance
-combination_performance(:) = 1;  % 1 correct out of those 2 → 0.5
-endTrial = zeros(nSubj, 1);
-
-% compute "online" performance estimation
-for iSub = 1:nSubj
-    thisSub = subj_list(iSub);
-    mask = (subjID == thisSub);
-    nTrials_sub = sum(mask);
-
-    if iSub > 1
-        endTrial(iSub) = endTrial(iSub-1) + nTrials_sub;
-        startTrial = endTrial(iSub-1) + 1;
-    else
-        endTrial(iSub) = nTrials_sub;
-        startTrial = 1;
-    end
-
-    for tr = startTrial:endTrial(iSub)
-
-        % (1) get cond, coh, correct values on this trial
-        this_cond = cond(tr);
-        this_coh  = coh(tr);
-        this_correct = Correct(tr);
-
-        % (2) find the index of this trial's cond and coh in their respective lists
-        cond_idx = find(cond_list == this_cond, 1);
-        coh_idx  = find(coh_list  == this_coh,  1);
-
-        % compute the column index into combination_counter:
-        % cond block of 6 + position within that block
-        combo_idx = (cond_idx - 1) * length(coh_list) + coh_idx;
-
-        % (3) increment the counter for this subject & combination
-        combination_counter(iSub, combo_idx) = combination_counter(iSub, combo_idx) + 1;
-
-        % (4) update performance estimate for this combination
-        combination_performance(iSub, combo_idx) = combination_performance(iSub, combo_idx) + this_correct;
-        p_perf_online(tr) = combination_performance(iSub, combo_idx) / combination_counter(iSub, combo_idx);
-    end
-end
-
-
-%% ===================== 4. Compute residual volatility from motion_energy =====================
-winLen = 10;
-tol    = 1e-12;
-
-evidence_strength   = cell(nTrials, 1);
-volatility_strength = cell(nTrials, 1);
-
-for tr = 1:nTrials
-    frames = motion_energy{tr};
-    trace  = frames(:)';
-
-    last_nz = find(abs(trace) > tol, 1, 'last');
-    if isempty(last_nz)
-        evidence_strength{tr}   = [];
-        volatility_strength{tr} = [];
-        continue;
-    end
-
-    trace_eff = trace(1:last_nz);
-    nFrames   = numel(trace_eff);
-
-    if nFrames < winLen
-        evidence_strength{tr}   = [];
-        volatility_strength{tr} = [];
-        continue;
-    end
-
-    nWin  = nFrames - winLen + 1;
-    m_win = nan(1, nWin);
-    s_win = nan(1, nWin);
-
-    for w = 1:nWin
-        seg      = trace_eff(w : w + winLen - 1);
-        m_win(w) = mean(seg);
-        s_win(w) = std(seg);
-    end
-
-    evidence_strength{tr}   = m_win;
-    volatility_strength{tr} = s_win;
-end
-
-nBins  = 50;
-%nBins = 100;
-t_norm = linspace(0, 1, nBins);
-
-MEAN_norm = nan(nTrials, nBins);
-STD_norm  = nan(nTrials, nBins);
-
-for tr = 1:nTrials
-    mu_tr = evidence_strength{tr};
-    sd_tr = volatility_strength{tr};
-    if isempty(mu_tr) || isempty(sd_tr), continue; end
-
-    nWin_tr = min(numel(mu_tr), numel(sd_tr));
-    mu_tr   = mu_tr(1:nWin_tr);
-    sd_tr   = sd_tr(1:nWin_tr);
-
-    t_orig = linspace(0, 1, nWin_tr);
-    MEAN_norm(tr,:) = interp1(t_orig, mu_tr, t_norm, 'linear');
-    STD_norm(tr,:)  = interp1(t_orig, sd_tr, t_norm, 'linear');
-end
-
-resVol_mat = nan(size(STD_norm));
-
-for b = 1:nBins
-    y  = STD_norm(:, b);
-    x1 = abs(MEAN_norm(:, b));
-
-    mask_b = ~isnan(y) & ~isnan(x1);
-    if sum(mask_b) < 3, continue; end
-
-    Xb    = [ones(sum(mask_b),1), x1(mask_b)];
-    y_use = y(mask_b);
-
-    beta  = Xb \ y_use;
-    resid = y_use - Xb*beta;
-
-    tmp = nan(size(y));
-    tmp(mask_b) = resid;
-    resVol_mat(:, b) = tmp;
-end
-
-mu_all = mean(resVol_mat(:), 'omitnan');
-sd_all = std(resVol_mat(:),  'omitnan');
-% z-score resVol_mat to turn it into resVol_time
-resVol_time = (resVol_mat - mu_all) ./ sd_all;
-
-fprintf('Residual volatility matrix: %d trials x %d bins\n', size(resVol_time,1), size(resVol_time,2));
-
-%% ===================== 5. Build & plot predictors =====================
-eps0   = 1e-4;
-p_clip = min(max(p_perf_all, eps0), 1-eps0); % question for megan: what is happening here? and why?
-Fp_all = (p_clip - mean(p_clip,'omitnan')) ./ std(p_clip,'omitnan');
-
-Cz_all = Correct;
-
+%% ===================== 2.5 Build & plot predictors =====================
 % plot predictors & outcome variable
 tiledlayout;
 % plot raw confidence
@@ -354,294 +171,75 @@ title('raw confidence (not used)')
 nexttile;
 histogram(ConfY);
 title('confidence z-scored within subject');
-% plot mysterious performance term
-nexttile;
-histogram(Fp_all)
-title('Fp all')
 % plot other performance term
 nexttile;
 histogram(p_perf_all);
 title('p perf all');
 % plot "online" performance term
-nexttile;
-histogram(p_perf_online);
-title('p perf online');
+nexttile; 
+histogram(p_perf_online); 
+title('p perf online'); 
 % plot correctness
 nexttile;
 histogram(Correct);
 title('correctness');
 % plot volatility
 nexttile;
-histogram(resVol_time);
-title('volatility (resVoltime)')
+histogram(resVol);
+title('z scored volatility (resVol)')
+% resVol check histogram
+figure;
+resVol_check;
 
-
-%% ===================== 6. Define model family =====================
-
+%% ===================== 3. Define model family =====================
+% run this to build model family
 [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_v2();
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_coh();
 
 % [modelNames, modelSpec, baseLabels, withcohNames, withcohLabels, oneWayNames, oneWayLabels, ...
 %     twoWayNames, twoWayLabels, nocohNames, nocohLabels, threeWayNames, threeWayLabels] = build_model_family_no_rt_withCorrect();
 nModels = numel(modelNames);
 
-%% ===================== 7. Fit all models for AIC/BIC =====================
-minN = 50;
-[~, K] = size(resVol_time);
-AIC_mat  = nan(K, nModels);
-BIC_mat  = nan(K, nModels);
-Nobs_mat = nan(K, nModels);
+%% ===================== Prep cfg =====================
+cfg = struct();
 
-Models = struct();
-Fitted_models = struct();
+cfg.resVol = resVol;
+cfg.nModels = nModels;
+cfg.modelNames = modelNames;
+cfg.modelSpec = modelSpec;
 
-coh_weuse = coh/100;
-z_coh = zscore(coh);
-z_perf = zscore(p_perf_all);
+cfg.baseLabels = baseLabels;
+cfg.oneWayLabels = oneWayLabels;
+cfg.oneWayNames = oneWayNames;
+cfg.twoWayNames = twoWayNames;
+cfg.threeWayLabels = threeWayLabels;
+cfg.threeWayNames = threeWayNames;
 
-for m = 1:nModels
-    %for m = 7
-    fprintf('\n=== Fitting %s ===\n', modelNames{m});
+cfg.ConfY = ConfY;
+cfg.Correct = Correct;
+cfg.subjID = subjID;
+cfg.coh = coh;
+cfg.z_coh = z_coh;
+cfg.z_perf = z_perf;
+cfg.rtX = rtX;
 
-    labels       = baseLabels;
-    coefVarNames = "(Intercept)";
+cfg.useSubjDummies = useSubjDummies;
+cfg.minN = 50;
 
-    for j = 1:2 % iterate over models that use just one predictor in addition to baseline
-        if modelSpec(m).use1(j)
-            labels{end+1} = oneWayLabels{j};
-            coefVarNames(end+1) = oneWayNames(j);
-        end
-    end
+cfg.DO_PLOT_AICBIC_DOTS = DO_PLOT_AICBIC_DOTS;
+cfg.outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
 
-    for j = 1 % iterate over models that use an interaction between 2 predictors
-        if modelSpec(m).use2(j)
-            f = f + " + " + twoWayNames(j);
-        end
-    end
+%% ===================== 4. Fit all models for AIC/BIC =====================
+% run this to fit model in the model family
+[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_coh(cfg);
 
-    if modelSpec(m).use3 % iterate over models that use an interaction among 3 predictors
-        labels{end+1} = threeWayLabels{1};
-        coefVarNames(end+1) = threeWayNames;
-    end
+%% ===================== 5. Rank models by composite AIC/BIC score and dot plot =====================
+% run this to see the winning AIC and BIC score for each model
+[deltaTbl, score, rankIdx, top4Idx] = rank_models(AIC_mat, BIC_mat, cfg.modelNames);
 
-    nTerms = numel(labels);
-    betas  = nan(K, nTerms);
-    beta_ses = betas;
-
-    for k = 1:K
-        Vk = resVol_time(:,k);
-
-        mask = ~isnan(Vk) & ~isnan(ConfY) & ~isnan(Correct) & ...
-            ~isnan(p_perf_online) & ~isnan(subjID) & ~isnan(coh);
-
-        if sum(mask) < minN, continue; end
-
-        y    = ConfY(mask);
-        coh_weuse = z_coh(mask);
-        P = z_perf(mask);
-        C = Correct(mask);
-        V = Vk(mask);
-        R    = rtX(mask);
-        R = R';
-        sID  = subjID(mask);
-
-        % sv = std(V);
-         %if sv < 1e-12, continue; end
-         %V = (V - mean(V)) ./ sv;
-
-        % build predictors
-        PxC = P.*C;  % predicted performance * accuracy
-        PxV = P.*V;  % predicted performance * volatility
-        VxC = V.*C;  % accuracy * volatility
-        PxVxC   = P.*V.*C; % predicted performance * volatility * accuracy
-
-        if useSubjDummies
-            S2 = double(sID==2);
-            S3 = double(sID==3);
-
-            T = table(y,R,coh_weuse,P,C,V,PxC,PxV,VxC,PxVxC,S2,S3, ...
-                'VariableNames', {'ConfY','R','coh','P','C','V', ...
-                'PxC','PxV','VxC',...
-                'PxVxC','S2','S3'});
-        else
-            T = table(y,R,coh_weuse,P,C,V,PxC,PxV,VxC,PxVxC, ...
-                'VariableNames', {'ConfY', 'R','coh','P','C','V', ...
-                'PxC','PxV','VxC', ...
-                'PxVxcoh'});
-        end
-
-        f = "ConfY ~ 1 + C + R + coh";
-
-        for j = 1:2 % make this the number of one-way models
-            if modelSpec(m).use1(j)
-                f = f + " + " + oneWayNames(j);
-            end
-        end
-
-        for j = 1 % make this the number of two-way models
-            if modelSpec(m).use2(j)
-                f = f + " + " + twoWayNames(j);
-            end
-        end
-
-        if modelSpec(m).use3
-            f = "ConfY ~ 1 + R + C + P + V + PxV";
-            f = f + " + " + threeWayNames;
-        end
-
-        if useSubjDummies
-            f = f + " + S2 + S3";
-        end
-
-        try
-            g = fitglm(T, f, 'Distribution','normal');
-
-        catch ME
-            fprintf('fitglm failed | model=%s | bin=%d\n', modelNames{m}, k);
-            fprintf('%s\n', ME.message);
-            continue;
-        end
-
-        Fitted_models(k, m).g = g;
-
-        AIC_mat(k,m)  = g.ModelCriterion.AIC;
-        BIC_mat(k,m)  = g.ModelCriterion.BIC;
-        Nobs_mat(k,m) = sum(mask);
-
-        coefNames = string(g.CoefficientNames);
-        coefEst   = g.Coefficients.Estimate;
-        coefSE = g.Coefficients.SE;
-        for tt = 1:numel(coefVarNames)
-            nm = coefVarNames(tt);
-            hit = find(coefNames == nm, 1, 'first');
-            if ~isempty(hit)
-                betas(k,tt) = coefEst(hit);
-                beta_ses(k, tt)   = coefSE(hit);
-            end
-        end
-    end
-
-    Models(m).name         = modelNames{m};
-    Models(m).labels       = labels;
-    Models(m).coefVarNames = coefVarNames;
-    Models(m).betas        = betas;
-    Models(m).beta_ses          = beta_ses;
-end
-
-%% ===================== 8. Rank models by composite AIC/BIC score =====================
-minAIC_perBin = min(AIC_mat, [], 2, 'omitnan');
-minBIC_perBin = min(BIC_mat, [], 2, 'omitnan');
-
-deltaAIC_mat = AIC_mat - minAIC_perBin;
-deltaBIC_mat = BIC_mat - minBIC_perBin;
-
-meanDeltaAIC = mean(deltaAIC_mat, 1, 'omitnan');
-medDeltaAIC  = median(deltaAIC_mat, 1, 'omitnan');
-meanDeltaBIC = mean(deltaBIC_mat, 1, 'omitnan');
-medDeltaBIC  = median(deltaBIC_mat, 1, 'omitnan');
-
-deltaTbl = table(modelNames(:), meanDeltaAIC(:), medDeltaAIC(:), ...
-    meanDeltaBIC(:), medDeltaBIC(:), ...
-    'VariableNames', {'Model','Mean_delta_AIC','Median_delta_AIC','Mean_delta_BIC','Median_delta_BIC'});
-
-disp('=== Delta AIC/BIC summary ===');
-disp(deltaTbl);
-
-score = mean([ ...
-    meanDeltaAIC(:), ...
-    medDeltaAIC(:), ...
-    meanDeltaBIC(:), ...
-    medDeltaBIC(:) ...
-    ], 2, 'omitnan');
-
-[~, rankIdx] = sort(score, 'ascend', 'MissingPlacement','last');
-rankIdx = rankIdx(~isnan(score(rankIdx)));
-
-N_TOP   = 4;
-top4Idx = rankIdx(1:min(N_TOP, numel(rankIdx)));
-
-fprintf('\n=== Top 4 models ===\n');
-disp(table(modelNames(top4Idx)', score(top4Idx), ...
-    'VariableNames', {'Model','CompositeScore'}));
-
-%% ===================== 8.25 Plot per-bin best AIC/BIC model dots =====================
-if DO_PLOT_AICBIC_DOTS
-
-    % For each time bin, find which model has the minimum AIC / BIC
-    [~, bestAIC_idx] = min(AIC_mat, [], 2, 'omitnan');   % K x 1
-    [~, bestBIC_idx] = min(BIC_mat, [], 2, 'omitnan');   % K x 1
-
-    % If an entire row is NaN, MATLAB min may return 1 incorrectly in some versions,
-    % so explicitly fix those bins
-    allNanAIC = all(isnan(AIC_mat), 2);
-    allNanBIC = all(isnan(BIC_mat), 2);
-
-    bestAIC_idx(allNanAIC) = NaN;
-    bestBIC_idx(allNanBIC) = NaN;
-
-    figAB = figure('Color','w','Position',[180 160 1000 420]); hold on;
-
-    % y-axis: M0 at bottom, M9 at top
-    yModel = 1:nModels;   % modelNames are already ordered M0 ... M9
-
-    % dummy handles for legend
-    hAIC = plot(nan, nan, 'o', ...
-        'MarkerSize', 5, ...
-        'MarkerFaceColor', [0 0.4470 0.7410], ...
-        'MarkerEdgeColor', 'none', ...
-        'DisplayName', 'Min AIC');
-
-    hBIC = plot(nan, nan, 'o', ...
-        'MarkerSize', 5, ...
-        'MarkerFaceColor', [0.8500 0.3250 0.0980], ...
-        'MarkerEdgeColor', 'none', ...
-        'DisplayName', 'Min BIC');
-
-    % plot blue dots for min AIC
-    for k = 1:K
-        if ~isnan(bestAIC_idx(k))
-            plot(k, bestAIC_idx(k)-0.10, 'o', ...
-                'MarkerSize', 5, ...
-                'MarkerFaceColor', [0 0.4470 0.7410], ...
-                'MarkerEdgeColor', 'none', ...
-                'HandleVisibility', 'off');
-        end
-    end
-
-    % plot red dots for min BIC
-    for k = 1:K
-        if ~isnan(bestBIC_idx(k))
-            plot(k, bestBIC_idx(k)+0.10, 'o', ...
-                'MarkerSize', 5, ...
-                'MarkerFaceColor', [0.8500 0.3250 0.0980], ...
-                'MarkerEdgeColor', 'none', ...
-                'HandleVisibility', 'off');
-        end
-    end
-
-    set(gca, ...
-        'YTick', yModel, ...
-        'YTickLabel', modelNames, ...
-        'YLim', [0.5 nModels+0.5], ...
-        'XTick', 1:K, ...
-        'XLim', [0.5 K+0.5], ...
-        'FontSize', 11, ...
-        'LineWidth', 1, ...
-        'TickLabelInterpreter','none');
-
-    xlabel('Time bin');
-    ylabel('Model');
-    title('Best model per time bin: AIC (blue) and BIC (red)', 'Interpreter','none');
-
-    grid on;
-    box off;
-
-    legend([hAIC, hBIC], {'Min AIC','Min BIC'}, 'Location','eastoutside');
-
-    outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
-    set(figAB,'Renderer','painters');
-    print(figAB, outPDF_ab, '-dpdf', '-painters');
-    fprintf('✓ Saved AIC/BIC dot plot: %s\n', outPDF_ab);
+% run this to see the AIC BIC dot plot
+if cfg.DO_PLOT_AICBIC_DOTS
+    plot_best_model_dots(AIC_mat, BIC_mat, cfg.modelNames, cfg.outPDF_ab);
 end
 
 %% ===================== 8.5 Quarter-bin pooled effect bar plot =====================
