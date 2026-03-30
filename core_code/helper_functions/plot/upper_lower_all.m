@@ -1,4 +1,3 @@
-models_to_plot = [6, 5];
 nPlot = numel(models_to_plot);
 
 % compute winning bins

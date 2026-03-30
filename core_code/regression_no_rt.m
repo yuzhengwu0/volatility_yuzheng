@@ -207,8 +207,8 @@ resVol_check;
 % M3: baseline + R + C + coh + P + V
 % M4: baseline + R + C + coh + P + V + P*V
 % M5: baseline + R + C + P + V + P*V + P*V*coh
-% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_coh();
+[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_coh();
 
 % model family 2:
 % fixed terms: RT (R), accuracy (C), coherence (coh), vol condition (z_cond)
@@ -228,8 +228,8 @@ resVol_check;
 % M3: baseline + R + C + coh + P + V
 % M4: baseline + R + C + coh + P + V + P*V
 % M5: baseline + R + C + coh + P + V + C*V
-[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_corr();
+% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_corr();
 
 % [modelNames, modelSpec, baseLabels, withcohNames, withcohLabels, oneWayNames, oneWayLabels, ...
 %     twoWayNames, twoWayLabels, nocohNames, nocohLabels, threeWayNames, threeWayLabels] = build_model_family_no_rt_withCorrect();
@@ -266,7 +266,7 @@ cfg.outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
 
 %% ===================== 4. Fit all models for AIC/BIC =====================
 % run this to fit model in the model family
-[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_corr(cfg);
+[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_coh(cfg);
 cfg.Fitted_models = Fitted_models;
 
 %% ===================== 5. Rank models by composite AIC/BIC score and dot plot =====================
@@ -286,8 +286,8 @@ end
 
 % switch
 QUARTER_MODEL_MODE = 'manual';      % 'top1' or 'manual'
-QUARTER_MODEL_NAME = 'M2_V';   % only used if QUARTER_MODEL_MODE = 'manual'
-QUARTER_TERM_NAME  = 'V';       % e.g. 'V','R','C','coh','PxV','VxC','RxV','PxVxC'...
+QUARTER_MODEL_NAME = 'M4_twoWay_PxV';   % only used if QUARTER_MODEL_MODE = 'manual'
+QUARTER_TERM_NAME  = 'PxV';       % e.g. 'V','R','C','coh','PxV','VxC','RxV','PxVxC'...
 cfg.QUARTER_MODEL_MODE = QUARTER_MODEL_MODE;
 cfg.QUARTER_MODEL_NAME = QUARTER_MODEL_NAME;
 cfg.QUARTER_TERM_NAME = QUARTER_TERM_NAME;
@@ -336,21 +336,25 @@ if DO_PLOT_BIG_FIGURE
     plot_bigfigure_top4_allTerms_coh(SelOrdered, t_norm, colSub, outPDF, termList, figTitle);
 end
 
+
 %% ====== one model all betas, with error bar and AIC BIC ======
 get_fitted_params;
 
 
-%%
+%% two plot (model) vertically aligned, all terms in each model
+% use it to compare AIC BIC and winning terms within model family
+models_to_plot = [3, 5];
 upper_lower_all;
 
-%%
-colSub = lines(3);  % 3 subjects 3 colors
-plot_models_oneTerm(Sel, [1, 2], {'b_{perf\times vol}', 'b_{vol}'}, t_norm, colSub, AIC_mat, BIC_mat);
 
-% check what terms in each model
+%% two plot (model) vertically aligned, only one choosen term and all three subjects
+% check what terms in each model (check this first, the model number is differ)
 for i = 1:numel(Sel)
     fprintf('\n=== Sel(%d): %s ===\n', i, Sel(i).mName);
     for j = 1:numel(Sel(i).termLabels)
         fprintf('  [%d] "%s"\n', j, Sel(i).termLabels{j});
     end
 end
+
+colSub = lines(3);  % 3 subjects 3 colors
+plot_models_oneTerm(Sel, [1, 2], {'b_{vol}', 'b_{perf\times vol}'}, t_norm, colSub, AIC_mat, BIC_mat);
