@@ -55,6 +55,8 @@ for p = 1:nPlot
     xlabel('time');
     ylabel('beta value');
     ylim([-0.5, 0.5]);
-    title(sprintf('Model %d', m));
+    xlim([1, nBins]);
+    termStr = strjoin(coef_names, ', ');
+    title(sprintf('Model %d:  %s', m, termStr), 'Interpreter', 'none');
     legend(coef_names, 'Location', 'eastoutside');
 end

@@ -69,7 +69,7 @@ labelW   = 90;
 
 outerL = 40;
 outerR = 30;
-outerT = 35;
+outerT = 100;
 outerB = 100;
 
 figW = outerL + labelW + nCols*tileSize + (nCols-1)*gapX + outerR;
@@ -254,47 +254,7 @@ fprintf('✓ Saved: %s\n', outPDF);
 
 end
 
-% ============================================================
-function yLim = local_term_ylim_allModels_coh(Sel, termLabel)
 
-vals = [];
-
-for c = 1:numel(Sel)
-    tt = find(strcmp(Sel(c).termLabels, termLabel), 1, 'first');
-    if isempty(tt)
-        continue;
-    end
-
-    bSub = Sel(c).beta_sub(:,:,tt);
-    eSub = Sel(c).se_sub(:,:,tt);
-
-    bPool = Sel(c).beta_pool(:,tt);
-    ePool = Sel(c).se_pool(:,tt);
-
-    vals = [vals; ...
-            bSub(:); bSub(:)+eSub(:); bSub(:)-eSub(:); ...
-            bPool(:); bPool(:)+ePool(:); bPool(:)-ePool(:)]; %#ok<AGROW>
-end
-
-vals = vals(~isnan(vals));
-
-if isempty(vals)
-    yLim = [-1 1];
-    return;
-end
-
-lo = prctile(vals, 2);
-hi = prctile(vals, 98);
-
-if abs(hi - lo) < 1e-6
-    lo = lo - 1;
-    hi = hi + 1;
-end
-
-pad = 0.10 * (hi - lo + eps);
-yLim = [lo - pad, hi + pad];
-
-end
 
 % ============================================================
 function out = term_to_tex_compact_coh(lbl)
@@ -327,5 +287,60 @@ switch lbl
     otherwise
         out = ['$' lbl '$'];
 end
+
+end
+
+% ============================================================
+function yLim = local_term_ylim_allModels_coh(Sel, termLabel)
+
+vals = [];
+
+for c = 1:numel(Sel)
+    tt = find(strcmp(Sel(c).termLabels, termLabel), 1, 'first');
+    if isempty(tt)
+        continue;
+    end
+
+    bSub  = Sel(c).beta_sub(:,:,tt);
+    eSub  = Sel(c).se_sub(:,:,tt);
+    bPool = Sel(c).beta_pool(:,tt);
+    ePool = Sel(c).se_pool(:,tt);
+
+    vals = [vals; ...
+            bSub(:); bSub(:)+eSub(:); bSub(:)-eSub(:); ...
+            bPool(:); bPool(:)+ePool(:); bPool(:)-ePool(:)]; %#ok<AGROW>
+end
+
+vals = vals(~isnan(vals));
+
+if isempty(vals)
+    yLim = [-1 1];
+    return;
+end
+
+lo = prctile(vals, 2);
+hi = prctile(vals, 98);
+
+% force including 0 in the plot
+lo = min(lo, 0);
+hi = max(hi, 0);
+
+if abs(hi - lo) < 1e-6
+    lo = lo - 1;
+    hi = hi + 1;
+end
+
+pad = 0.10 * (hi - lo + eps);
+lo = lo - pad;
+hi = hi + pad;
+
+% avoid noisy trial end
+if strcmp(termLabel, 'b_{vol}') || strcmp(termLabel, 'b_{perf\times vol}')|| ...
+    strcmp(termLabel, 'b_{corrxvol}') || strcmp(termLabel, 'b_{perfxvolxcoh}')
+    hi = min(hi, 0.3); 
+    lo = max(lo, -0.3); % adjust range for interaction terms
+end
+
+yLim = [lo, hi];
 
 end

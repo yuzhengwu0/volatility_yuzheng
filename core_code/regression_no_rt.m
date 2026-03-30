@@ -55,9 +55,9 @@ RPF_check_toolboxes;
 
 %% ===================== SWITCH =====================
 % plot
-DO_PLOT_BIG_FIGURE = false;
+DO_PLOT_BIG_FIGURE = true;
 DO_PLOT_AICBIC_DOTS  = true;
-DO_PLOT_QUARTER_BAR = false;
+DO_PLOT_QUARTER_BAR = true;
 
 useSubjDummies = false;
 
@@ -285,9 +285,9 @@ end
 % selected term
 
 % switch
-QUARTER_MODEL_MODE = 'top1';      % 'top1' or 'manual'
+QUARTER_MODEL_MODE = 'manual';      % 'top1' or 'manual'
 QUARTER_MODEL_NAME = 'M2_V';   % only used if QUARTER_MODEL_MODE = 'manual'
-QUARTER_TERM_NAME  = 'PxV';       % e.g. 'V','R','C','coh','PxV','VxC','RxV','PxVxC'...
+QUARTER_TERM_NAME  = 'V';       % e.g. 'V','R','C','coh','PxV','VxC','RxV','PxVxC'...
 cfg.QUARTER_MODEL_MODE = QUARTER_MODEL_MODE;
 cfg.QUARTER_MODEL_NAME = QUARTER_MODEL_NAME;
 cfg.QUARTER_TERM_NAME = QUARTER_TERM_NAME;
@@ -339,15 +339,18 @@ end
 %% ====== one model all betas, with error bar and AIC BIC ======
 get_fitted_params;
 
+
 %%
 upper_lower_all;
 
 %%
-colSub = lines(3);  % 3个subject，自动生成3种颜色
-plot_models_oneTerm(Sel, [1, 4], {'b_{perf\times vol}', 'b_{vol}'}, t_norm, colSub, AIC_mat, BIC_mat);
+colSub = lines(3);  % 3 subjects 3 colors
+plot_models_oneTerm(Sel, [1, 2], {'b_{perf\times vol}', 'b_{vol}'}, t_norm, colSub, AIC_mat, BIC_mat);
 
-% see what terms in the model
+% check what terms in each model
 for i = 1:numel(Sel)
-    fprintf('Sel(%d): %s\n', i, Sel(i).mName);
-    disp(Sel(i).termLabels)
+    fprintf('\n=== Sel(%d): %s ===\n', i, Sel(i).mName);
+    for j = 1:numel(Sel(i).termLabels)
+        fprintf('  [%d] "%s"\n', j, Sel(i).termLabels{j});
+    end
 end
