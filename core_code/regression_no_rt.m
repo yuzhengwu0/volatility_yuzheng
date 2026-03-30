@@ -338,3 +338,16 @@ end
 
 %% ====== one model all betas, with error bar and AIC BIC ======
 get_fitted_params;
+
+%%
+upper_lower_all;
+
+%%
+colSub = lines(3);  % 3个subject，自动生成3种颜色
+plot_models_oneTerm(Sel, [1, 4], {'b_{perf\times vol}', 'b_{vol}'}, t_norm, colSub, AIC_mat, BIC_mat);
+
+% see what terms in the model
+for i = 1:numel(Sel)
+    fprintf('Sel(%d): %s\n', i, Sel(i).mName);
+    disp(Sel(i).termLabels)
+end
