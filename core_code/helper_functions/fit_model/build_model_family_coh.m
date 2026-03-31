@@ -6,21 +6,23 @@ baseLabels    = {'b0 (Intercept)','b_{corr}','b_{rt}','b_{coh}'};
 oneWayNames   = ["P", "V"];
 oneWayLabels  = {'b_{perf}','b_{vol}'};
 
-twoWayNames   = ["PxV"];
-twoWayLabels  = {'b_{perf×vol}'};
+twoWayNames   = ["PxV", "CxV"];
+twoWayLabels  = {'b_{perf×vol}', 'b_{corrxvol}'};
 
-threeWayNames  = ["PxVxcoh"];
-threeWayLabels = {'b_{perf×vol×coh}'};
+threeWayNames   = ["PxVxcoh", 'CxVxcoh'];
+threeWayLabels  = {'b_{perf×volxcoh}', 'b_{corrxvolxcoh}'};
 
 % each row:
 % [name, use1, use2, use3]
 defs = {
     'M0_base',           [],       [],     false;
-    'M1_P',              1,        [],     false;
-    'M2_V',              2,        [],     false;
-    'M3_all',            1:2,      [],     false;
-    'M4_twoWay_PxV',     1:2,      1,      false;
-    'M5_PxVxcoh',        1:2,      1,      true;
+    'M1_P',                 1,        [],     false;
+    'M2_V',                 2,        [],     false;
+    'M3_P+V',            1:2,      [],     false;
+    'M4_PxV',           1:2,      1,      false;
+    'M5_CxV',           1:2,     2,         false;
+    'M6_PxVxcoh',     1:2,     [],       1;
+    'M7_CxVxcoh',    1:2,       [],      2;
 };
 
 nModels    = size(defs, 1);

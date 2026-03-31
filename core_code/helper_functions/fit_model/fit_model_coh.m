@@ -57,16 +57,28 @@ for m = 1:nModels
         coefVarNames(end+1) = "V";
     end
 
-    % optional two-way term
+    % add PxV
     if modelSpec(m).use2(1)
         labels{end+1} = 'b_{perf×vol}';
         coefVarNames(end+1) = "PxV";
     end
 
-    % optional three-way term
-    if modelSpec(m).use3
-        labels{end+1} = 'b_{perf×vol×coh}';
+    % add CxV
+    if modelSpec(m).use2(2)
+        labels{end+1} = 'b_{corr×vol}';
+        coefVarNames(end+1) = "CxV";
+    end
+
+    % add PxVxcoh
+    if modelSpec(m).use3(1)
+        labels{end+1} = 'b_{p×volxcoh}';
         coefVarNames(end+1) = "PxVxcoh";
+    end
+
+    % add CxVxcoh
+    if modelSpec(m).use3(2)
+        labels{end+1} = 'b_{corr×volxcoh}';
+        coefVarNames(end+1) = "CxVxcoh";
     end
 
     nTerms   = numel(labels);
@@ -99,20 +111,22 @@ for m = 1:nModels
 
         % interactions
         PxV     = P .* V;
-        PxVxcoh = P .* V .* coh;
+        CxV     = C.* V;
+        PxVxcoh = P.*V.*coh;
+        CxVxcoh = C.*V.*coh;
 
         % table
         if useSubjDummies
             S2 = double(sID == 2);
             S3 = double(sID == 3);
 
-            T = table(y, C, R, coh, P, V, PxV, PxVxcoh, S2, S3, ...
+            T = table(y, C, R, coh, P, V, PxV, CxV, PxVxcoh, CxVxcoh,S2, S3, ...
                 'VariableNames', {'ConfY','C','R','coh','P','V', ...
-                                  'PxV','PxVxcoh','S2','S3'});
+                                  'PxV','CxV', 'PxVxCoh', 'CxVxCoh', 'S2','S3'});
         else
-            T = table(y, C, R, coh, P, V, PxV, PxVxcoh, ...
+            T = table(y, C, R, coh, P, V, PxV, CxV, PxVxcoh, CxVxcoh, ...
                 'VariableNames', {'ConfY','C','R','coh','P','V', ...
-                                  'PxV','PxVxcoh'});
+                                  'PxV', 'CxV', 'PxVxcoh', 'CxVxcoh'});
         end
 
         % -------------------------------------------------
@@ -132,8 +146,16 @@ for m = 1:nModels
             f = f + " + PxV";
         end
 
-        if modelSpec(m).use3
+         if modelSpec(m).use2(2)
+            f = f + " + CxV";
+        end
+
+        if modelSpec(m).use3(1)
             f = f + " + PxVxcoh";
+        end
+
+         if modelSpec(m).use3(2)
+            f = f + " + CxVxcoh";
         end
 
         if useSubjDummies
