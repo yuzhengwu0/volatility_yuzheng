@@ -217,8 +217,8 @@ resVol_check;
 % M2: baseline + R + C + coh + z_cond + V
 % M3: baseline + R + C + coh + z_cond + P + V
 % M4: baseline + R + C + coh + z_cond + P + V + P*V
-[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_zcond();
+% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_zcond();
 
 % model family 3:
 % fixed terms: RT (R), accuracy (C), coherence (coh)
@@ -236,10 +236,10 @@ resVol_check;
 nModels = numel(modelNames);
 
 %% ===================== 3.5 accuracy as regressor: Define model family =====================
-% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_accuracy();
+[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_accuracy();
 
-% nModels = numel(modelNames);
+nModels = numel(modelNames);
 
 %% ===================== Prep cfg =====================
 cfg = struct();
@@ -272,7 +272,7 @@ cfg.outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
 
 %% ===================== 4. Fit all models for AIC/BIC =====================
 % run this to fit model in the model family
-[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_zcond(cfg);
+[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_accuracy(cfg);
 cfg.Fitted_models = Fitted_models;
 
 %% ===================== 5. Rank models by composite AIC/BIC score and dot plot =====================
@@ -349,7 +349,7 @@ get_fitted_params;
 
 %% two plot (model) vertically aligned, all terms in each model
 % use it to compare AIC BIC and winning terms within model family
-models_to_plot = [2, 5];
+models_to_plot = [3, 5];
 upper_lower_all;
 
 

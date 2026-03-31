@@ -32,8 +32,8 @@ defs = {
     'M3_P+V',            1:2,      [],     false;
     'M4_PxV',           1:2,      1,      false;
     'M5_CxV',           1:2,     2,         false;
-    'M6_PxVxcoh',     1:2,     [],       1;
-    'M7_CxVxcoh',    1:2,       [],      2;
+    'M6_PxVxcoh',     1:2,     1:2,       1;
+    'M7_CxVxcoh',    1:2,       1:2,      2;
 };
 
 nModels    = size(defs, 1);
