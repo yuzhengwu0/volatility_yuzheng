@@ -13,7 +13,7 @@
 %      SD on absolute motion-energy mean at each time bin.
 %
 % REGRESSION ANALYSIS:
-%   Linear regression predicting logit-transformed confidence:
+%   Linear regression predicting confidence [0-1]:
 %
 %       ConfY ~ perf + corr + vol + rt + interactions
 %
@@ -36,14 +36,12 @@
 %       Displays time courses of regression coefficients (per subject
 %       and mean) for the top-ranked models.
 %
-% DEPENDENT VARIABLE:
-%   Confidence in [0,1], slightly shrunk from boundaries and then
-%   logit-transformed.
-%
 % KEY PREDICTORS:
 %   perf : predicted performance
 %   corr : correctness
 %   vol  : residual volatility from motion energy
+%  coh  : stimulus coherence
+%  z_cond: trial-level stimulus volatility
 
 clear; clc; close all;
 
@@ -66,13 +64,18 @@ DO_SPLIT_COH = false; %coh
 LOW_COH_VALUES = [0, 32, 64];
 HIGH_COH_VALUES = [128, 256, 512];
 DO_USE_RT = true; % RT
-P_PERF_MODE = 'all'; % perf: 'all' or 'online' or 'try'
+P_PERF_MODE = 'online'; % perf: 'all' or 'online' or 'try'
 % parameters for resVol
 nBins = 50;
 winLen = 10;
 tol    = 1e-12;
 
-%% ===================== 1. Load data =====================
+% model family
+MODEL_FAMILY = 'perf_and_vol'; % 'perf_and_vol or vol_only
+% outcome var
+OUTCOME = 'conf'; % can be 'conf', 'acc', 'rt'
+
+%% ===================== 1. Load & clean data =====================
 addpath('helper_functions/');
 addpath('helper_functions/data_prep/')
 addpath('helper_functions/fit_model/')
@@ -116,7 +119,7 @@ rt            = rt_all(valid);
 nTrials = numel(coh);
 fprintf('Total valid trials: %d\n', nTrials);
 
-%% ===================== 2. Cleaning Data =====================
+%% ===================== 2. Prep predictors =====================
 % prep z_score confidence 
 ConfY = transform_conf(confCont, subjID);
 
@@ -152,6 +155,10 @@ z_coh = zscore(coh_weuse);
 % z-scored volatility condition 
 z_cond = zscore(cond);
 
+% z-log momentary volatility 
+log_vol = log(resVol_mat + 1);
+zlog_vol = zscore(log_vol);
+
 % SUMMARY!!!
 % for later on anaysis we are using:
 % ConfY (z-scored, n * 1)
@@ -161,89 +168,55 @@ z_cond = zscore(cond);
 % coh
 % Correct (raw accuracy (0/1), n * 1)
 
-%% ===================== 2.5 Build & plot predictors =====================
-% plot predictors & outcome variable
-tiledlayout;
-% plot raw confidence
-nexttile;
-histogram(confCont);
-title('raw confidence (not used)')
-% plot z-scored confidence
-nexttile;
-histogram(ConfY);
-title('confidence z-scored within subject');
-% plot other performance term
-nexttile;
-histogram(p_perf_all);
-title('p perf all');
-plot "online" performance term
-nexttile; 
-histogram(p_perf_online); 
-title('p perf online'); 
-% plot correctness
-nexttile;
-histogram(Correct);
-title('correctness');
-% plot volatility
-nexttile;
-histogram(resVol);
-title('z scored volatility (resVol)')
-% plot coherence
-nexttile;
-histogram(coh);
-title('z scored volatility (resVol)')
-% plot raw rt
-nexttile;
-histogram(rt);
-title('raw rt')
-% resVol check histogram
-figure;
-resVol_check;
+%% ===================== 2.5 Plot predictors =====================
 
-%% ===================== 3. Define model family =====================
+plot_regression_variables
+
+%% ===================== 3. Define model families =====================
 % run this to build model family and change the family model by un-comment
 
-% model family 1:
-% fixed terms: RT (R), accuracy (C), coherence (coh)
-% M0: baseline + R + C + coh
-% M1: baseline + R + C + coh + P
-% M2: baseline + R + C + coh + V
-% M3: baseline + R + C + coh + P + V
-% M4: baseline + R + C + coh + P + V + P*V
-% M5: baseline + R + C + P + V + P*V + P*V*coh
-% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_coh();
+% outer loop controls outcome variable
+switch OUTCOME 
 
-% model family 2:
-% fixed terms: RT (R), accuracy (C), coherence (coh), vol condition (z_cond)
-% M0: baseline + R + C + coh + z_cond
-% M1: baseline + R + C + coh + z_cond + P
-% M2: baseline + R + C + coh + z_cond + V
-% M3: baseline + R + C + coh + z_cond + P + V
-% M4: baseline + R + C + coh + z_cond + P + V + P*V
-% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_zcond();
+    % confidence model families
+    case 'conf'
 
-% model family 3:
-% fixed terms: RT (R), accuracy (C), coherence (coh)
-% M0: baseline + R + C + coh
-% M1: baseline + R + C + coh + P
-% M2: baseline + R + C + coh + V
-% M3: baseline + R + C + coh + P + V
-% M4: baseline + R + C + coh + P + V + P*V
-% M5: baseline + R + C + coh + P + V + C*V
-% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_corr();
+        switch MODEL_FAMILY
 
-% [modelNames, modelSpec, baseLabels, withcohNames, withcohLabels, oneWayNames, oneWayLabels, ...
-%     twoWayNames, twoWayLabels, nocohNames, nocohLabels, threeWayNames, threeWayLabels] = build_model_family_no_rt_withCorrect();
-% nModels = numel(modelNames);
+            case 'perf_and_vol' 
+                % model family 1: perf & vol
+                % fixed terms: RT (R), accuracy (C), coherence (coh), vol condition (z_cond)
+                % M0: baseline + R + C + coh + z_cond
+                % M1: baseline + R + C + coh + z_cond + P
+                % M2: baseline + R + C + coh + z_cond + V
+                % M3: baseline + R + C + coh + z_cond + P + V
+                % M4: baseline + R + C + coh + z_cond + P + V + P*V
+                % M5: baseline + R + C + coh + z_cond + P + V + C*V
+                % M6: baseline + R + C + coh + z_cond + P + V + P*V*coh
+                % M7: baseline + R + C + coh + z_cond + P + V + C*V*coh
+                [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+                     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_zcond();
 
-%% ===================== 3.5 accuracy as regressor: Define model family =====================
-[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_accuracy();
+            case 'vol_only'
+                % model family 2: volatility only
+                % fixed terms: RT (R), accuracy (C), coherence (coh), vol condition (z_cond)
+                % M0: baseline + R + C + coh + z_cond
+                % M1: baseline + R + C + coh + z_cond + V
+                % M2: baseline + R + C + coh + z_cond + V + C*V
+                % M3: baseline + R + C + coh + z_cond + V + C*V + C*V*coh
+                [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+                    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_volOnly();
+        end
 
-
+     % accuracy model
+    case 'acc'
+        [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+            twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_accuracy();
+    % rt model
+    case 'rt'
+        [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+        twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_rt();
+end
 
 nModels = numel(modelNames);
 
@@ -258,7 +231,7 @@ cfg.z_perf = z_perf;
 cfg.rtX = rtX;
 cfg.z_cond = z_cond;
 
-cfg.resVol = resVol;
+cfg.resVol = zlog_vol;
 cfg.nModels = nModels;
 cfg.modelNames = modelNames;
 cfg.modelSpec = modelSpec;
@@ -278,7 +251,20 @@ cfg.outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
 
 %% ===================== 4. Fit all models for AIC/BIC =====================
 % run this to fit model in the model family
-[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_accuracy(cfg);
+switch OUTCOME
+    case 'acc'
+        [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_accuracy(cfg);
+    case 'rt'
+        [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_rt(cfg);
+    case 'conf'
+        switch MODEL_FAMILY
+            case 'perf_and_vol'
+                [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_zcond(cfg);
+            case 'vol_only'
+                [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_volOnly(cfg);
+        end
+end
+
 cfg.Fitted_models = Fitted_models;
 
 %% ===================== 5. Rank models by composite AIC/BIC score and dot plot =====================
