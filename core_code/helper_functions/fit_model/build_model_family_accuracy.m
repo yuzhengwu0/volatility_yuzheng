@@ -1,5 +1,5 @@
 function [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_do_accuracy()
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_accuracy()
 
 % model family - accuracy 
 % fixed terms: RT (R),  coherence (coh), vol condition (z_cond)
@@ -31,8 +31,7 @@ modelNames = defs(:,1)';
 
 modelSpec = struct( ...
     'use1', cell(1,nModels), ...
-    'use2', cell(1,nModels), ...
-    'use3', cell(1,nModels));
+    'use2', cell(1,nModels));
 
 for i = 1:nModels
     u1 = false(1, numel(oneWayNames));
@@ -44,15 +43,9 @@ for i = 1:nModels
     if ~isempty(defs{i,3})
         u2(defs{i,3}) = true;
     end
-
-    u3 = false(1, numel(threeWayNames));
-    if ~isempty(defs{i,4})
-        u3(defs{i,4}) = true;
-    end
-
+    
     modelSpec(i).use1 = u1;
     modelSpec(i).use2 = u2;
-    modelSpec(i).use3 = u3;
 end
 
 end
