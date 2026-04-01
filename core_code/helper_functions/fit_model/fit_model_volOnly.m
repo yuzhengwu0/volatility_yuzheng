@@ -1,5 +1,5 @@
 function [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = ...
-    fit_model_rt(cfg)
+    fit_model_volOnly(cfg)
 
 % make sure all vectors are columns
 minN    = cfg.minN;
@@ -26,6 +26,7 @@ AIC_mat  = nan(K, nModels);
 BIC_mat  = nan(K, nModels);
 Nobs_mat = nan(K, nModels);
 
+Models = struct();
 Fitted_models = struct();
 
 for m = 1:nModels
@@ -33,44 +34,27 @@ for m = 1:nModels
 
     % -------------------------------------------------
     % Decide base terms for this model
-    % M0-M4: 1 + C + R + coh
+    % M0-M4: 1 + C + R + coh + z_cond
     % -------------------------------------------------
 
-    labels = {'b0 (Intercept)', 'b_{corr}', 'b_{coh}', 'b_{cond}'};
-    coefVarNames = ["(Intercept)", "C", "coh", "z_cond"];
-    baseFormula = "R ~ 1 + C + coh + z_cond";
+    labels = {'b0 (Intercept)', 'b_{corr}', 'b_{rt}', 'b_{coh}', 'b_{cond}'};
+    coefVarNames = ["(Intercept)", "C", "R", "coh", "z_cond"];
+    baseFormula = "ConfY ~ 1 + C + R + coh + z_cond";
 
     % optional one-way terms
     if modelSpec(m).use1(1)
-        labels{end+1} = 'b_{perf}';
-        coefVarNames(end+1) = "P";
-    end
-
-    if modelSpec(m).use1(2)
         labels{end+1} = 'b_{vol}';
         coefVarNames(end+1) = "V";
     end
 
-    % add PxV
-    if modelSpec(m).use2(1)
-        labels{end+1} = 'b_{perf×vol}';
-        coefVarNames(end+1) = "PxV";
-    end
-
     % add CxV
-    if modelSpec(m).use2(2)
+    if modelSpec(m).use2(1)
         labels{end+1} = 'b_{corr×vol}';
         coefVarNames(end+1) = "CxV";
     end
 
-    % add PxVxcoh
-    if modelSpec(m).use3(1)
-        labels{end+1} = 'b_{p×volxcoh}';
-        coefVarNames(end+1) = "PxVxcoh";
-    end
-
     % add CxVxcoh
-    if modelSpec(m).use3(2)
+    if modelSpec(m).use3(1)
         labels{end+1} = 'b_{corr×volxcoh}';
         coefVarNames(end+1) = "CxVxcoh";
     end
@@ -84,12 +68,12 @@ for m = 1:nModels
         Vk = resVol(:, k);
 
         mask = ~isnan(Vk)      & ...
-               ~isnan(ConfY)   & ...
-               ~isnan(Correct) & ...
-               ~isnan(z_coh)   & ...
-               ~isnan(z_perf)  & ...
-               ~isnan(rtX)     & ...
-               ~isnan(subjID);
+            ~isnan(ConfY)   & ...
+            ~isnan(Correct) & ...
+            ~isnan(z_coh)   & ...
+            ~isnan(z_perf)  & ...
+            ~isnan(rtX)     & ...
+            ~isnan(subjID);
 
         if sum(mask) < minN
             continue;
@@ -117,13 +101,13 @@ for m = 1:nModels
             S2 = double(sID == 2);
             S3 = double(sID == 3);
 
-            T = table(R, C, coh, z_cond, P, V, PxV, CxV, PxVxcoh, CxVxcoh,S2, S3, ...
-                'VariableNames', {'R','C','coh','z_cond','P','V', ...
-                                  'PxV','CxV', 'PxVxCoh', 'CxVxCoh', 'S2','S3'});
+            T = table(y, C, R, coh, z_cond, P, V, PxV, CxV, PxVxcoh, CxVxcoh,S2, S3, ...
+                'VariableNames', {'ConfY','C','R','coh','z_cond','P','V', ...
+                'PxV','CxV', 'PxVxCoh', 'CxVxCoh', 'S2','S3'});
         else
-            T = table(R, C, coh, z_cond, P, V, PxV,CxV, PxVxcoh, CxVxcoh, ...
-                'VariableNames', {'R','C','coh','z_cond','P','V', ...
-                                  'PxV', 'CxV', 'PxVxcoh', 'CxVxcoh',});
+            T = table(y, C, R, coh, z_cond, P, V, PxV,CxV, PxVxcoh, CxVxcoh, ...
+                'VariableNames', {'ConfY','C','R','coh','z_cond','P','V', ...
+                'PxV', 'CxV', 'PxVxcoh', 'CxVxcoh',});
         end
 
         % -------------------------------------------------
@@ -132,26 +116,14 @@ for m = 1:nModels
         f = baseFormula;
 
         if modelSpec(m).use1(1)
-            f = f + " + P";
-        end
-
-        if modelSpec(m).use1(2)
             f = f + " + V";
         end
 
         if modelSpec(m).use2(1)
-            f = f + " + PxV";
-        end
-
-         if modelSpec(m).use2(2)
             f = f + " + CxV";
         end
 
         if modelSpec(m).use3(1)
-            f = f + " + PxVxcoh";
-        end
-
-         if modelSpec(m).use3(2)
             f = f + " + CxVxcoh";
         end
 
@@ -161,7 +133,8 @@ for m = 1:nModels
 
         % fit
         try
-            g = fitglm(T, f, 'Distribution', 'normal');
+            %g = fitglm(T, f, 'Distribution', 'normal');
+            g = fitlm(T,f);
         catch ME
             fprintf('fitglm failed | model=%s | bin=%d\n', modelNames{m}, k);
             fprintf('%s\n', ME.message);
@@ -173,6 +146,7 @@ for m = 1:nModels
         AIC_mat(k, m)  = g.ModelCriterion.AIC;
         BIC_mat(k, m)  = g.ModelCriterion.BIC;
         Nobs_mat(k, m) = sum(mask);
-end
+    end
 
+end
 end

@@ -1,4 +1,4 @@
-function [Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = ...
+function [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = ...
     fit_model_accuracy(cfg)
 
 % make sure all vectors are columns
@@ -26,7 +26,6 @@ AIC_mat  = nan(K, nModels);
 BIC_mat  = nan(K, nModels);
 Nobs_mat = nan(K, nModels);
 
-Models = struct();
 Fitted_models = struct();
 
 for m = 1:nModels
@@ -131,27 +130,6 @@ for m = 1:nModels
         AIC_mat(k, m)  = g.ModelCriterion.AIC;
         BIC_mat(k, m)  = g.ModelCriterion.BIC;
         Nobs_mat(k, m) = sum(mask);
-
-        coefNames = string(g.CoefficientNames);
-        coefEst   = g.Coefficients.Estimate;
-        coefSE    = g.Coefficients.SE;
-
-        for tt = 1:numel(coefVarNames)
-            nm = coefVarNames(tt);
-            hit = find(coefNames == nm, 1, 'first');
-
-            if ~isempty(hit)
-                betas(k, tt)    = coefEst(hit);
-                beta_ses(k, tt) = coefSE(hit);
-            end
-        end
-    end
-
-    Models(m).name         = modelNames{m};
-    Models(m).labels       = labels;
-    Models(m).coefVarNames = coefVarNames;
-    Models(m).betas        = betas;
-    Models(m).beta_ses     = beta_ses;
 end
 
 end
