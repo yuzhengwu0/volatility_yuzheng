@@ -42,28 +42,16 @@ for m = 1:nModels
     baseFormula = "C ~ 1 + R + coh + z_cond";
 
     % optional one-way terms
-    if modelSpec(m).use1(1)
-        labels{end+1} = 'b_{perf}';
-        coefVarNames(end+1) = "P";
-    end
 
-    if modelSpec(m).use1(2)
+    if modelSpec(m).use1(1)
         labels{end+1} = 'b_{vol}';
         coefVarNames(end+1) = "V";
     end
 
-    % add PxV
     if modelSpec(m).use2(1)
-        labels{end+1} = 'b_{perf×vol}';
-        coefVarNames(end+1) = "PxV";
+        labels{end+1} = 'b_{volxcoh}';
+        coefVarNames(end+1) = "Vxcoh";
     end
-
-    % add PxVxcoh
-    if modelSpec(m).use3(1)
-        labels{end+1} = 'b_{p×volxcoh}';
-        coefVarNames(end+1) = "PxVxcoh";
-    end
-
 
     nTerms   = numel(labels);
     betas    = nan(K, nTerms);
@@ -95,8 +83,7 @@ for m = 1:nModels
         z_cond1 = z_cond(mask);
 
         % interactions
-        PxV     = P .* V;
-        PxVxcoh = P.*V.*coh;
+        Vxcoh = V.*coh;
 
 
         % table
@@ -104,13 +91,13 @@ for m = 1:nModels
             S2 = double(sID == 2);
             S3 = double(sID == 3);
 
-            T = table(C, R, coh, z_cond1, P, V, PxV, PxVxcoh,S2, S3, ...
-                'VariableNames', {'C','R','coh','z_cond','P','V', ...
-                                  'PxV', 'PxVxCoh', 'S2','S3'});
+            T = table(C, R, coh, z_cond1, V, Vxcoh, S2, S3, ...
+                'VariableNames', {'C','R','coh','z_cond','V', ...
+                                  'Vxcoh', 'S2','S3'});
         else
-            T = table(C, R, coh, z_cond1, P, V, PxV, PxVxcoh, ...
-                'VariableNames', {'C','R','coh','z_cond','P','V', ...
-                                  'PxV', 'PxVxcoh'});
+            T = table(C, R, coh, z_cond1, V, Vxcoh, ...
+                'VariableNames', {'C','R','coh','z_cond','V', ...
+                                  'Vxcoh'});
         end
 
         % -------------------------------------------------
@@ -119,19 +106,11 @@ for m = 1:nModels
         f = baseFormula;
 
         if modelSpec(m).use1(1)
-            f = f + " + P";
-        end
-
-        if modelSpec(m).use1(2)
             f = f + " + V";
         end
 
         if modelSpec(m).use2(1)
-            f = f + " + PxV";
-        end
-
-        if modelSpec(m).use3(1)
-            f = f + " + PxVxcoh";
+            f = f + " + Vxcoh";
         end
 
         if useSubjDummies
