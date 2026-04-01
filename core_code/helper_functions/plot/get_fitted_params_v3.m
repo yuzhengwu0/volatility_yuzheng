@@ -1,4 +1,4 @@
-models = [5];
+models = [3];
 
 for model = 1:length(models)
     m = models(model);
@@ -21,10 +21,8 @@ for model = 1:length(models)
 end
 
 %% create universal mapping between variables & plot colors
-canonicalNames  = ["(Intercept)", "R", "coh", "z_cond", "P", "V", "PxV", 'PxVxcoh'];
-canonicalLabels = ["Intercept", "RT", "coherence", "trial volatility", ...
-                   "online perf", "momentary vol", "PxV",  ...
-                   'PxVxCoh'];
+canonicalNames  = ["(Intercept)", "R", "coh", "z_cond", "V", "Vxcoh"];
+canonicalLabels = ["Intercept", "RT", "coherence", "trial volatility","momentary volatility","interaction: Vxcoh"];
 canonicalColors = lines(numel(canonicalNames));
 
 %% plot beta timecourses from interaction model
@@ -32,7 +30,7 @@ figure; hold on
 yline(0, 'HandleVisibility', 'off')
 
 % add shaded areas to indicate winning model
-xregion([32 50], 'FaceAlpha', 0.1, 'DisplayName', 'PxVxCoh preferred by AIC')
+xregion([40 50], 'FaceAlpha', 0.1, 'DisplayName', 'preferred by AIC')
 
 for i = 1:numel(coef_names)
     if i == 1, continue; end  % skip intercept
@@ -51,8 +49,8 @@ legend('Location', 'eastoutside')
 
 xlabel('time')
 ylabel('beta value')
-sgtitle('accuracy as outcome')
-ylim([-0.5, 1.25])
+sgtitle('accuracy as outcome M2')
+ylim([-0.5, 2])
 
 %xregion([1 6]);
 %xregion([21 41])

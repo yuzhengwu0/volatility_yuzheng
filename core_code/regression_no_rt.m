@@ -192,6 +192,10 @@ title('z scored volatility (resVol)')
 nexttile;
 histogram(coh);
 title('z scored volatility (resVol)')
+% plot raw rt
+nexttile;
+histogram(rt);
+title('raw rt')
 % resVol check histogram
 figure;
 resVol_check;
@@ -217,8 +221,8 @@ resVol_check;
 % M2: baseline + R + C + coh + z_cond + V
 % M3: baseline + R + C + coh + z_cond + P + V
 % M4: baseline + R + C + coh + z_cond + P + V + P*V
-[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_zcond();
+% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_zcond();
 
 % model family 3:
 % fixed terms: RT (R), accuracy (C), coherence (coh)
@@ -233,13 +237,15 @@ resVol_check;
 
 % [modelNames, modelSpec, baseLabels, withcohNames, withcohLabels, oneWayNames, oneWayLabels, ...
 %     twoWayNames, twoWayLabels, nocohNames, nocohLabels, threeWayNames, threeWayLabels] = build_model_family_no_rt_withCorrect();
-nModels = numel(modelNames);
+% nModels = numel(modelNames);
 
 %% ===================== 3.5 accuracy as regressor: Define model family =====================
-% [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-%     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_accuracy();
+[modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_accuracy();
 
-% nModels = numel(modelNames);
+
+
+nModels = numel(modelNames);
 
 %% ===================== Prep cfg =====================
 cfg = struct();
@@ -272,7 +278,7 @@ cfg.outPDF_ab = '../figure/AIC_BIC_bestModel_dots.pdf';
 
 %% ===================== 4. Fit all models for AIC/BIC =====================
 % run this to fit model in the model family
-[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_zcond(cfg);
+[Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_accuracy(cfg);
 cfg.Fitted_models = Fitted_models;
 
 %% ===================== 5. Rank models by composite AIC/BIC score and dot plot =====================

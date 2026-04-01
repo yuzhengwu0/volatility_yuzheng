@@ -1,35 +1,29 @@
 function [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_do_accuracy()
 
-% model family - accuracy as regressor
+% model family - accuracy 
 % fixed terms: RT (R),  coherence (coh), vol condition (z_cond)
 % M0: intercept + R + coh + z_cond
-% M1: intercept + R + coh + z_cond + P
-% M2: intercept + R + coh + z_cond + V
-% M3: intercept + R + coh + z_cond + P + V
-% M4: intercept + R + coh + z_cond + P + V + P*V
-% M6: intercept + R + coh + z_cond + P + V + P*V*coh
+% M1: intercept + R + coh + z_cond + V
+% M2: intercept + R + coh + z_cond + V + coh*V
 
 baseLabels    = {'b0 (Intercept)','b_{corr}','b_{rt}','b_{coh}','b_{cond}'};
 
-oneWayNames   = ["P", "V"];
+oneWayNames   = ["V"];
 oneWayLabels  = {'b_{perf}','b_{vol}'};
 
-twoWayNames   = ["PxV", "CxV"];
-twoWayLabels  = {'b_{perf×vol}', 'b_{corrxvol}'};
+twoWayNames   = ['Vxcoh'];
+twoWayLabels  = {'b_{perf×volxcoh}', 'b_{corrxvolxcoh}'};
 
-threeWayNames   = ["PxVxcoh", 'CxVxcoh'];
-threeWayLabels  = {'b_{perf×volxcoh}', 'b_{corrxvolxcoh}'};
+threeWayNames   = [];
+threeWayLabels  = {};
 
 % each row:
 % [name, use1, use2, use3]
 defs = {
     'M0_base',       [],      [],     false;
-    'M1_P',           1,      [],     false;
-    'M2_V',           2,      [],     false;
-    'M3_P+V',       1:2,      [],     false;
-    'M4_PxV',       1:2,      1,      false;
-    'M6_PxVxcoh',   1:2,      1,       1;
+    'M1_V',           1,      [],     false;
+    'M2_Vxcoh',       1,      1,      false;
 };
 
 nModels    = size(defs, 1);
