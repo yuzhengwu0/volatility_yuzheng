@@ -4,7 +4,7 @@ function rtX = transform_rt(rt, subjID)
 % subjID   : subject ID vector
 %
 % Output:
-% ConfY    : z-scored RT within subject
+% rtX    : z-scored RT within subject
 
     rtX = nan(size(rt));
 

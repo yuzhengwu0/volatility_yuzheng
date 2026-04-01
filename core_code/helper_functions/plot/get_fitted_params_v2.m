@@ -32,8 +32,8 @@ figure; hold on
 yline(0, 'HandleVisibility', 'off')
 
 % add shaded areas to indicate winning model
-xregion([24 44], 'FaceAlpha', 0.1, 'DisplayName', 'CxVxCoh preferred by AIC')
-xregion([28 38], 'FaceAlpha', 0.1, 'DisplayName', 'CxVxCoh preferred by BIC & AIC', 'FaceColor', 'r')
+%xregion([24 44], 'FaceAlpha', 0.1, 'DisplayName', 'CxVxCoh preferred by AIC')
+%xregion([28 38], 'FaceAlpha', 0.1, 'DisplayName', 'CxVxCoh preferred by BIC & AIC', 'FaceColor', 'r')
 
 for i = 1:numel(coef_names)
     if i == 1, continue; end  % skip intercept

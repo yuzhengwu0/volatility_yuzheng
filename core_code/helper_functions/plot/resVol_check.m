@@ -29,7 +29,6 @@ colors = {'blue', 'red'};
 % legend({'low volatility', 'high volatility'}, 'Location', 'northeastoutside')
 
 %% Figure 2: log_resVol
-zlog_resVol = zscore(log_resVol);
 figure;
 t2 = tiledlayout(1, length(coh_levels));
 for i = 1:length(coh_levels)
@@ -39,7 +38,7 @@ for i = 1:length(coh_levels)
         c = coh_levels(i);
         v = vol_levels(j);
         mask = vol_bool == v & coh == c;
-        histogram(zlog_resVol(mask), 'FaceColor', colors{j}, 'BinWidth', 0.25);
+        histogram(zlog_vol(mask), 'FaceColor', colors{j}, 'BinWidth', 0.25);
         title(sprintf('coh = %.2f', c/100));
     end
 end
