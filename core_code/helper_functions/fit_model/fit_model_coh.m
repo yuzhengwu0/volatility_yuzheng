@@ -1,4 +1,4 @@
-function [Models, Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = ...
+function [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = ...
     fit_model_coh(cfg)
 
 % make sure all vectors are columns
@@ -10,6 +10,7 @@ z_perf  = cfg.z_perf;
 rtX     = cfg.rtX;
 subjID  = cfg.subjID;
 resVol  = cfg.resVol;
+z_cond  = cfg.z_cond;
 modelNames = cfg.modelNames;
 modelSpec = cfg.modelSpec;
 useSubjDummies = cfg.useSubjDummies;
@@ -31,55 +32,38 @@ Fitted_models = struct();
 for m = 1:nModels
     fprintf('\n=== Fitting %s ===\n', modelNames{m});
 
-    % -------------------------------------------------
-    % Decide base terms for this model
-    % M0-M4: 1 + C + R + coh
-    % M5(use3): 1 + C + R
-    % -------------------------------------------------
-    if modelSpec(m).use3
-        labels = {'b0 (Intercept)', 'b_{corr}', 'b_{rt}'};
-        coefVarNames = ["(Intercept)", "C", "R"];
-        baseFormula = "ConfY ~ 1 + C + R";
-    else
-        labels = {'b0 (Intercept)', 'b_{corr}', 'b_{rt}', 'b_{coh}'};
-        coefVarNames = ["(Intercept)", "C", "R", "coh"];
-        baseFormula = "ConfY ~ 1 + C + R + coh";
-    end
+
+    labels = {'b0 (Intercept)', 'b_{corr}', 'b_{rt}', 'b_{coh}', 'b_{cond}'};
+    coefVarNames = ["(Intercept)", "C", "R", "coh", "z_cond"];
+    baseFormula = "ConfY ~ 1 + C + R + coh + z_cond";
 
     % optional one-way terms
-    if modelSpec(m).use1(1)
-        labels{end+1} = 'b_{perf}';
-        coefVarNames(end+1) = "P";
-    end
 
-    if modelSpec(m).use1(2)
+    if modelSpec(m).use1(1)
         labels{end+1} = 'b_{vol}';
         coefVarNames(end+1) = "V";
     end
 
-    % add PxV
-    if modelSpec(m).use2(1)
-        labels{end+1} = 'b_{perf×vol}';
-        coefVarNames(end+1) = "PxV";
-    end
 
     % add CxV
-    if modelSpec(m).use2(2)
-        labels{end+1} = 'b_{corr×vol}';
-        coefVarNames(end+1) = "CxV";
+    if modelSpec(m).use2(1)
+        labels{end+1} = 'b_{volxcorr}';
+        coefVarNames(end+1) = "VxC";
     end
 
-    % add PxVxcoh
-    if modelSpec(m).use3(1)
-        labels{end+1} = 'b_{p×volxcoh}';
-        coefVarNames(end+1) = "PxVxcoh";
+        % add PxV
+    if modelSpec(m).use2(2)
+        labels{end+1} = 'b_{volxcoh}';
+        coefVarNames(end+1) = "Vxcoh";
     end
+
 
     % add CxVxcoh
-    if modelSpec(m).use3(2)
-        labels{end+1} = 'b_{corr×volxcoh}';
-        coefVarNames(end+1) = "CxVxcoh";
+    if modelSpec(m).use3
+        labels{end+1} = 'b_{volxcorrxcoh}';
+        coefVarNames(end+1) = "VxCxcoh";
     end
+
 
     nTerms   = numel(labels);
     betas    = nan(K, nTerms);
@@ -108,25 +92,26 @@ for m = 1:nModels
         P   = z_perf(mask);
         V   = Vk(mask);
         sID = subjID(mask);
+        z_cond = z_cond(mask);
 
         % interactions
-        PxV     = P .* V;
-        CxV     = C.* V;
-        PxVxcoh = P.*V.*coh;
-        CxVxcoh = C.*V.*coh;
+        Vxcoh     = V.* coh;
+        VxC     = C.* V;
+        VxCxcoh = C.*V.*coh;
+
 
         % table
         if useSubjDummies
             S2 = double(sID == 2);
             S3 = double(sID == 3);
 
-            T = table(y, C, R, coh, P, V, PxV, CxV, PxVxcoh, CxVxcoh,S2, S3, ...
-                'VariableNames', {'ConfY','C','R','coh','P','V', ...
-                                  'PxV','CxV', 'PxVxCoh', 'CxVxCoh', 'S2','S3'});
+            T = table(y, C, R, coh, z_cond, V, VxC, Vxcoh,VxCxcoh,S2, S3, ...
+                'VariableNames', {'ConfY','C','R','coh','z_cond','V', ...
+                                  'VxC', 'Vxcoh', 'VxCxcoh', 'S2','S3'});
         else
-            T = table(y, C, R, coh, P, V, PxV, CxV, PxVxcoh, CxVxcoh, ...
-                'VariableNames', {'ConfY','C','R','coh','P','V', ...
-                                  'PxV', 'CxV', 'PxVxcoh', 'CxVxcoh'});
+            T = table(y, C, R, coh, z_cond, V, VxC, Vxcoh, VxCxcoh, ...
+                'VariableNames', {'ConfY','C','R','coh','z_cond','V', ...
+                                   'VxC', 'Vxcoh', 'VxCxcoh',});
         end
 
         % -------------------------------------------------
@@ -134,28 +119,20 @@ for m = 1:nModels
         % -------------------------------------------------
         f = baseFormula;
 
-        if modelSpec(m).use1(1)
-            f = f + " + P";
-        end
-
-        if modelSpec(m).use1(2)
+       if modelSpec(m).use1(1)
             f = f + " + V";
         end
 
         if modelSpec(m).use2(1)
-            f = f + " + PxV";
+            f = f + " + VxC";
         end
 
-         if modelSpec(m).use2(2)
-            f = f + " + CxV";
+        if modelSpec(m).use2(2)
+            f = f + " + Vxcoh";
         end
 
-        if modelSpec(m).use3(1)
-            f = f + " + PxVxcoh";
-        end
-
-         if modelSpec(m).use3(2)
-            f = f + " + CxVxcoh";
+       if modelSpec(m).use3
+            f = f + " + VxCxcoh";
         end
 
         if useSubjDummies
@@ -164,7 +141,7 @@ for m = 1:nModels
 
         % fit
         try
-            g = fitglm(T, f, 'Distribution', 'normal');
+            g = fitlm(T, f);
         catch ME
             fprintf('fitglm failed | model=%s | bin=%d\n', modelNames{m}, k);
             fprintf('%s\n', ME.message);
@@ -177,26 +154,6 @@ for m = 1:nModels
         BIC_mat(k, m)  = g.ModelCriterion.BIC;
         Nobs_mat(k, m) = sum(mask);
 
-        coefNames = string(g.CoefficientNames);
-        coefEst   = g.Coefficients.Estimate;
-        coefSE    = g.Coefficients.SE;
-
-        for tt = 1:numel(coefVarNames)
-            nm = coefVarNames(tt);
-            hit = find(coefNames == nm, 1, 'first');
-
-            if ~isempty(hit)
-                betas(k, tt)    = coefEst(hit);
-                beta_ses(k, tt) = coefSE(hit);
-            end
-        end
-    end
-
-    Models(m).name         = modelNames{m};
-    Models(m).labels       = labels;
-    Models(m).coefVarNames = coefVarNames;
-    Models(m).betas        = betas;
-    Models(m).beta_ses     = beta_ses;
 end
 
 end

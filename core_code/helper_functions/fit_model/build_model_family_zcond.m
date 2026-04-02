@@ -3,37 +3,31 @@ function [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
 
 % model family 2:
 % fixed terms: RT (R), accuracy (C), coherence (coh), vol condition (z_cond)
-% M0: baseline + R + C + coh + z_cond
-% M1: baseline + R + C + coh + z_cond + P
-% M2: baseline + R + C + coh + z_cond + V
-% M3: baseline + R + C + coh + z_cond + P + V
-% M4: baseline + R + C + coh + z_cond + P + V + P*V
-% M5: baseline + R + C + coh + z_cond + P + V + C*V
-% M6: baseline + R + C + coh + z_cond + P + V + P*V*coh
-% M7: baseline + R + C + coh + z_cond + P + V + C*V*coh
+% M0: intercept + R + C + coh + z_cond
+% M1: M0 + V
+% M2: M1 + V*C
+% M3: M1 + V*z_cond
+% M4: M1 + V*C + V*z_cond + V*C*z_cond
 
-baseLabels    = {'b0 (Intercept)','b_{corr}','b_{rt}','b_{coh}','b_{cond}'};
+baseLabels    = {'b0 (Intercept)','b_{corr}','b_{rt}','b_{coh}','b_{z_cond}'};
 
-oneWayNames   = ["P", "V"];
-oneWayLabels  = {'b_{perf}','b_{vol}'};
+oneWayNames   = ["V"];
+oneWayLabels  = {'b_{vol}'};
 
-twoWayNames   = ["PxV", "CxV"];
-twoWayLabels  = {'b_{perf×vol}', 'b_{corrxvol}'};
+twoWayNames   = ["VxC", "Vxz_cond"];
+twoWayLabels  = {'b_{vol×corr}', 'b_{volxz_cond}'};
 
-threeWayNames   = ["PxVxcoh", 'CxVxcoh'];
-threeWayLabels  = {'b_{perf×volxcoh}', 'b_{corrxvolxcoh}'};
+threeWayNames   = ['VxCxz_cond'];
+threeWayLabels  = {'b_{volxcorrxz_cond}'};
 
 % each row:
 % [name, use1, use2, use3]
 defs = {
-    'M0_base',           [],       [],     false;
-    'M1_P',                 1,        [],     false;
-    'M2_V',                 2,        [],     false;
-    'M3_P+V',            1:2,      [],     false;
-    'M4_PxV',           1:2,      1,      false;
-    'M5_CxV',           1:2,     2,         false;
-    'M6_PxVxcoh',     1:2,     1:2,       1;
-    'M7_CxVxcoh',    1:2,       1:2,      2;
+    'M0_base',              [],        [],     false;
+    'M1_V',                   1,        [],     false;
+    'M2_VxC',               1,        1,      false;
+    'M3_Vxz_cond',      1,         2,       false;
+    'M4_VxCxz_cond',   1,       1:2,      true;
 };
 
 nModels    = size(defs, 1);

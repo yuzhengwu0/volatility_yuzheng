@@ -1,5 +1,5 @@
 function [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = ...
-    fit_model_zcond(cfg)
+    fit_model_blend_corr(cfg)
 
 % make sure all vectors are columns
 minN    = cfg.minN;
@@ -33,9 +33,9 @@ for m = 1:nModels
     fprintf('\n=== Fitting %s ===\n', modelNames{m});
 
 
-    labels = {'b0 (Intercept)', 'b_{corr}', 'b_{rt}', 'b_{coh}', 'b_{z_cond}'};
-    coefVarNames = ["(Intercept)", "C", "R", "coh", "z_cond"];
-    baseFormula = "ConfY ~ 1 + C + R + coh + z_cond";
+    labels = {'b0 (Intercept)', 'b_{rt}', 'b_{coh}', 'b_{z_cond}'};
+    coefVarNames = ["(Intercept)", "R", "coh", "z_cond"];
+    baseFormula = "ConfY ~ 1 + R + coh + z_cond";
 
     % optional one-way terms
 
@@ -45,23 +45,23 @@ for m = 1:nModels
     end
 
 
-    % add CxV
+    % add Vxcoh
     if modelSpec(m).use2(1)
-        labels{end+1} = 'b_{volxcorr}';
-        coefVarNames(end+1) = "VxC";
+        labels{end+1} = 'b_{volxcoh}';
+        coefVarNames(end+1) = "Vxcoh";
     end
 
-        % add PxV
+    % add Vxz_con
     if modelSpec(m).use2(2)
         labels{end+1} = 'b_{volxz_cond}';
         coefVarNames(end+1) = "Vxz_cond";
     end
 
 
-    % add CxVxcoh
+    % add Vxcohxz_cond
     if modelSpec(m).use3
-        labels{end+1} = 'b_{volxcorrxz_cond}';
-        coefVarNames(end+1) = "VxCxz_cond";
+        labels{end+1} = 'b_{volxcohxz_cond}';
+        coefVarNames(end+1) = "Vxcohxz_cond";
     end
 
 
@@ -74,7 +74,6 @@ for m = 1:nModels
 
         mask = ~isnan(Vk)      & ...
                ~isnan(ConfY)   & ...
-               ~isnan(Correct) & ...
                ~isnan(z_coh)   & ...
                ~isnan(z_perf)  & ...
                ~isnan(rtX)     & ...
@@ -86,18 +85,16 @@ for m = 1:nModels
 
         % current-bin data
         y   = ConfY(mask);
-        C   = Correct(mask);
         R   = rtX(mask);
         coh = z_coh(mask);
-        P   = z_perf(mask);
         V   = Vk(mask);
         sID = subjID(mask);
         z_cond = z_cond(mask);
 
         % interactions
         Vxz_cond     = V.* z_cond;
-        VxC     = C.* V;
-        VxCxz_cond = C.*V.*z_cond;
+        Vxcoh     = V .* coh;
+        Vxcohxz_cond = V.*coh.*z_cond;
 
 
         % table
@@ -105,13 +102,13 @@ for m = 1:nModels
             S2 = double(sID == 2);
             S3 = double(sID == 3);
 
-            T = table(y, C, R, coh, z_cond, V, VxC, Vxz_cond,VxCxz_cond,S2, S3, ...
-                'VariableNames', {'ConfY','C','R','coh','z_cond','V', ...
-                                  'VxC', 'Vxz_cond', 'VxCxz_cond', 'S2','S3'});
+            T = table(y, R, coh, z_cond, V, Vxcoh, Vxz_cond,Vxcohxz_cond,S2, S3, ...
+                'VariableNames', {'ConfY','R','coh','z_cond','V', ...
+                                  'Vxcoh', 'Vxz_cond', 'Vxcohxz_cond', 'S2','S3'});
         else
-            T = table(y, C, R, coh, z_cond, V, VxC, Vxz_cond, VxCxz_cond, ...
-                'VariableNames', {'ConfY','C','R','coh','z_cond','V', ...
-                                   'VxC', 'Vxz_cond', 'VxCxz_cond',});
+            T = table(y, R, coh, z_cond, V, Vxcoh, Vxz_cond, Vxcohxz_cond, ...
+                'VariableNames', {'ConfY','R','coh','z_cond','V', ...
+                                   'Vxcoh', 'Vxz_cond', 'Vxcohxz_cond',});
         end
 
         % -------------------------------------------------
@@ -124,15 +121,15 @@ for m = 1:nModels
         end
 
         if modelSpec(m).use2(1)
-            f = f + " + VxC";
+            f = f + " + Vxcoh";
         end
 
         if modelSpec(m).use2(2)
             f = f + " + Vxz_cond";
         end
 
-       if modelSpec(m).use3
-            f = f + " + VxCxz_cond";
+       if sum(modelSpec(m).use3) == 1
+            f = f + " + Vxcohxz_cond";
         end
 
         if useSubjDummies
@@ -141,7 +138,7 @@ for m = 1:nModels
 
         % fit
         try
-            g = fitlm(T, f');
+            g = fitlm(T, f);
         catch ME
             fprintf('fitglm failed | model=%s | bin=%d\n', modelNames{m}, k);
             fprintf('%s\n', ME.message);

@@ -1,33 +1,33 @@
 function [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
-    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_coh()
+    twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_blend_corr()
 
 % model family 2:
 % fixed terms: RT (R), accuracy (C), coherence (coh), vol cohition (coh)
-% M0: intercept + R + C + coh + z_cond
+% M0: intercept + R + coh + z_cond
 % M1: M0 + V
-% M2: M1 + V*C
-% M3: M1 + V*coh
-% M4: M1 + V*C + V*coh + V*C*coh
+% M2: M1 + V*Coh
+% M3: M1 + V*z_cond
+% M4: M1 + V*C + V*coh + V*coh*z_cond
 
-baseLabels    = {'b0 (Intercept)','b_{corr}','b_{rt}','b_{coh}','b_{z_cond}'};
+baseLabels    = {'b0 (Intercept)','b_{rt}','b_{coh}','b_{z_cond}'};
 
 oneWayNames   = ["V"];
 oneWayLabels  = {'b_{vol}'};
 
-twoWayNames   = ["VxC", "Vxcoh"];
-twoWayLabels  = {'b_{vol×corr}', 'b_{volxcoh}'};
+twoWayNames   = ["Vxcoh", "Vxz_cond"];
+twoWayLabels  = {'b_{vol×coh}', 'b_{volxz_cond}'};
 
-threeWayNames   = ['VxCxcoh'];
-threeWayLabels  = {'b_{volxcorrxcoh}'};
+threeWayNames   = ['Vxcohxz_cond'];
+threeWayLabels  = {'b_{volxcohxz_cond}'};
 
 % each row:
 % [name, use1, use2, use3]
 defs = {
     'M0_base',              [],        [],     false;
     'M1_V',                   1,        [],     false;
-    'M2_VxC',               1,        1,      false;
-    'M3_Vxcoh',      1,         2,       false;
-    'M4_VxCxcoh',   1,       1:2,      true;
+    'M2_Vxcoh',               1,        1,      false;
+    'M3_Vxz_cond',      1,         2,       false;
+    'M4_Vxcohxz_cond',   1,       1:2,      true;
 };
 
 nModels    = size(defs, 1);
