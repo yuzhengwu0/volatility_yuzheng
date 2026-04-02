@@ -1,12 +1,16 @@
 function [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
     twoWayNames, twoWayLabels, threeWayNames, threeWayLabels] = build_model_family_volOnly()
 
-% model family 2:
+% input: 'coh' or 'cond'
+% specifies whether 3-way interaction uses coherence or volatility condition
+
+% general model family
 % fixed terms: RT (R), accuracy (C), coherence (coh), vol condition (z_cond)
-% M0: baseline + R + C + coh + z_cond
-% M1: baseline + R + C + coh + z_cond + V
-% M2: baseline + R + C + coh + z_cond + V + C*V
-% M3: baseline + R + C + coh + z_cond + V + C*V + C*V*coh
+% M0: intercept + R + C + coh + z_cond
+% M1: M0 + V
+% M2: M1 + V*C
+% M3: M1 + V*var
+% M4: M1 + V*C + V*var + V*C*var
 
 baseLabels    = {'b0 (Intercept)','b_{corr}','b_{rt}','b_{coh}','b_{cond}'};
 
