@@ -91,10 +91,19 @@ subjID_all    = allStruct.group(:);
 ME_cell_all   = allStruct.motion_energy;
 rt_all        = allStruct.rt(:);
 
-valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & correct_all == 0 & ...
+CORR = 'incorr'; % 'corr' or 'incorr' or 'all'
+switch CORR
+    case 'corr'
+        valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ~isnan(confCont_all) & correct_all == 1 & ...
+        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
+    case 'incorr'
+        valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ~isnan(confCont_all) & correct_all == 0 & ...
+        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
+    case 'all'
+        valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ...
     ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
+end
 
-valid_conf = (confCont_all >= 0) & (confCont_all <= 1);
 
 % ===== try low coh here =====
 if DO_SPLIT_COH
@@ -103,7 +112,7 @@ else
     valid_coh = true(size(coh_all));
 end
 
-valid = valid_basic & valid_conf & valid_coh;
+valid = valid_basic & valid_coh;
 
 coh           = coh_all(valid);
 resp          = resp_all(valid);
@@ -130,7 +139,7 @@ else
 end
 
 % prep z-scored residual volatility (resVol)
-[resVol_mat, resVol, cond, resVol_betas] = compute_resVol(motion_energy, vol, nBins, winLen, tol);
+[resVol_mat, resVol, cond] = compute_resVol(motion_energy, vol, nBins, winLen, tol);
 
 % prep predicted performance
 switch P_PERF_MODE
@@ -270,7 +279,7 @@ switch OUTCOME
             case 'coh'
                 [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_coh(cfg);
             case 'blend'
-                [Fitted_models_incorrect, AIC_mat, BIC_mat, Nobs_mat] = fit_model_blend_corr(cfg);
+                [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_blend_corr(cfg);
         end
 end
 
@@ -278,9 +287,10 @@ cfg.Fitted_models = Fitted_models;
 
 % ===================== 5. Rank models by composite AIC/BIC score and dot plot =====================
 % run this to see the winning AIC and BIC median and mean score for each model
-[deltaTbl, score, rankIdx, top4Idx] = rank_models(AIC_mat, BIC_mat, cfg.modelNames);
+[deltaTbl, score, rankIdx, top4Idx, deltaBIC] = rank_models(AIC_mat, BIC_mat, cfg.modelNames);
 cfg.rankIdx = rankIdx;
 cfg.top4Idx = top4Idx;
+
 
 % run this to see the AIC BIC dot plot
 if cfg.DO_PLOT_AICBIC_DOTS
