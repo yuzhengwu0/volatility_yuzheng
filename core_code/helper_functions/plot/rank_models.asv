@@ -1,4 +1,4 @@
-function [deltaTbl, score, rankIdx, top4Idx, deltaBIC] = rank_models(AIC_mat, BIC_mat, modelNames)
+function [deltaTbl, score, rankIdx, top4Idx] = rank_models(AIC_mat, BIC_mat, modelNames)
 
 minAIC_perBin = min(AIC_mat, [], 2, 'omitnan');
 minBIC_perBin = min(BIC_mat, [], 2, 'omitnan');
@@ -7,7 +7,7 @@ deltaAIC_mat = AIC_mat - minAIC_perBin;
 deltaBIC_mat = BIC_mat - minBIC_perBin;
 
 
-deltaBIC_min = sort(deltaBIC_mat, 2, 'ascend');
+deltaBIC_min = sort(deltaBIC_mat, 'ascend');
 deltaBIC = deltaBIC_min(:,2) - deltaBIC_min(:,1);
 
 meanDeltaAIC = mean(deltaAIC_mat, 1, 'omitnan');
