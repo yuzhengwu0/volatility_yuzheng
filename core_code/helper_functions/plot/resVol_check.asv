@@ -50,23 +50,21 @@ legend({'low volatility', 'high volatility'}, 'Location', 'northeastoutside')
 
 %% resVol check by vol condition
 figure;
+
 bin_edges = linspace(min(resVol(:)), max(resVol(:)), 200);
 cond_levels = unique(vol);
-tiledlayout(length(cond_levels), 1);
 
-colors = {[0.2 0.5 0.8], [0.8 0.2 0.2]};  % blue, red
+tiledlayout(length(cond_levels),1);
 
 for i = 1:length(cond_levels)
     nexttile;
     hold on;
-    mask = vol == cond_levels(i);
-
-    % all
-    histogram(resVol(:), bin_edges, 'FaceColor', 'w', 'EdgeColor', 'k');
-
-    % current vol - white 
-    histogram(resVol(mask, :), bin_edges, 'FaceColor', colors{i}, 'FaceAlpha', 0.5, 'EdgeColor', 'none');
-
+    
+    mask = vol == cond_levels(i);  % logical index
+    
+    histogram(resVol, bin_edges);         % all trials
+    histogram(resVol(mask,:), bin_edges);   % this coh only
+    
     if cond_levels(i) == 0
         title('low vol cond');
     elseif cond_levels(i) == 256
@@ -75,12 +73,12 @@ for i = 1:length(cond_levels)
         title('something wrong if you see this line');
     end
 
-    xlabel('res Vol');
+    xlabel('res Vol (n*50)');
     ylabel('count');
 end
-
 legend({'all trials', 'current vol'}, 'Location', 'northeast')
 title(gcf().Children(1), 'sanity check for resVol distribution in high/low vol cond')
+
 
 %% resVol check by coherence 
 figure;
@@ -105,27 +103,7 @@ end
 legend({'all trials', 'current coh'}, 'Location', 'northeast')
 title(gcf().Children(1), 'sanity check for raw volatility distribution in each coh level')
 
-%%
-figure;
-bin_edges = linspace(min(resVol_mat(:)), max(resVol_mat(:)), 200);
 
-hold on;
-
-% white
-histogram(resVol_mat(:), bin_edges, 'FaceColor', 'w', 'EdgeColor', 'k');
-
-% low vol - blue 2872 trials
-mask_low = vol == 0;
-histogram(resVol_mat(mask_low, :), bin_edges, 'FaceColor', [0.2 0.5 0.8], 'FaceAlpha', 0.4, 'EdgeColor', 'none');
-
-% high vol - red 2874 trials
-mask_high = vol == 256;
-histogram(resVol_mat(mask_high, :), bin_edges, 'FaceColor', [0.8 0.2 0.2], 'FaceAlpha', 0.4, 'EdgeColor', 'none');
-
-legend({'all trials', 'low vol', 'high vol'}, 'Location', 'northeast');
-xlabel('res Vol mat');
-ylabel('count');
-title('sanity check for resVol distribution in high/low vol cond');
 %% figure 4 vanessa trying resVol mean
 resVol_mean = mean(resVol,2);
 resVol_high_mean = resVol_mean(highvol == 1);
@@ -201,34 +179,11 @@ title(gcf().Children(1), 'sanity check for raw volatility distribution in each c
 
 %%
 figure;
-tiledlayout(2,1);
+tiledlayout(1, 2;
+hold on;
 nexttile;
 histogram(rt)
 title("raw RT")
-
 nexttile;
 histogram(rtX)
 title("z-loged RT")
-
-
-%% rt just try, wyz curious
-figure;
-bin_edges = linspace(min(rtX), max(rtX), 60);
-
-hold on;
-
-% white
-histogram(rtX, bin_edges, 'FaceColor', 'w', 'EdgeColor', 'k');
-
-% low vol - blue 2872 trials
-mask_low = vol == 0;
-histogram(rtX(mask_low), bin_edges, 'FaceColor', [0.2 0.5 0.8], 'FaceAlpha', 0.4, 'EdgeColor', 'none');
-
-% high vol - red 2874 trials
-mask_high = vol == 256;
-histogram(rtX(mask_high), bin_edges, 'FaceColor', [0.8 0.2 0.2], 'FaceAlpha', 0.4, 'EdgeColor', 'none');
-
-legend({'all trials', 'low vol', 'high vol'}, 'Location', 'northeast');
-xlabel('res Vol');
-ylabel('count');
-title('sanity check for resVol distribution in high/low vol cond');

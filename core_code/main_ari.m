@@ -49,9 +49,9 @@ clear; clc; close all;
 
 % clear;
 %% plot
-DO_PLOT_BIG_FIGURE = true;
+DO_PLOT_BIG_FIGURE = false;
 DO_PLOT_AICBIC_DOTS  = true;
-DO_PLOT_QUARTER_BAR = true;
+DO_PLOT_QUARTER_BAR = false;
 DO_PLOT_PREDICTORS = false;
 
 useSubjDummies = true;
@@ -64,8 +64,8 @@ DO_USE_RT = true; % RT
 P_PERF_MODE = 'online'; % perf: 'all' or 'online' or 'try'
 DISCRETE_COH = false; % do you want to discretize coherence into low/high?
 % parameters for resVol
-nBins = 50;
-winLen = 10;
+nBins = 27;
+winLen = 5;
 tol    = 1e-12;
 
 % model family
@@ -83,25 +83,26 @@ tmp       = load(data_path, 'all');
 allStruct = tmp.all;
 
 coh_all       = allStruct.rdm1_coh(:);
-resp_all      = allStruct.req_resp(:);        % 1/2
+given_all      = allStruct.given_resp(:);        % 1/2
+req_all       = allStruct.req_resp(:);
 correct_all   = allStruct.correct(:);         % 1/0
 confCont_all  = allStruct.confidence(:);      % 0-1
 vol_all       = allStruct.rdm1_coh_std(:);
 subjID_all    = allStruct.group(:);
-ME_cell_all   = allStruct.motion_energy;
+motion_energy_all = allStruct.motion_energy;
 rt_all        = allStruct.rt(:);
 
 CORR = 'incorr'; % 'corr' or 'incorr' or 'all'
 switch CORR
     case 'corr'
-        valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ~isnan(confCont_all) & correct_all == 1 & ...
-        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
+        valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ~isnan(confCont_all) & correct_all == 1 & ...
+        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
     case 'incorr'
-        valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ~isnan(confCont_all) & correct_all == 0 & ...
-        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
+        valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ~isnan(confCont_all) & correct_all == 0 & ...
+        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
     case 'all'
-        valid_basic = ~isnan(coh_all) & ~isnan(resp_all) & ~isnan(correct_all) & ...
-    ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all);
+        valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ...
+    ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
 end
 
 
@@ -115,13 +116,17 @@ end
 valid = valid_basic & valid_coh;
 
 coh           = coh_all(valid);
-resp          = resp_all(valid);
+req           = req_all(valid);
+given         = given_all(valid);
 Correct       = correct_all(valid);
 confCont      = confCont_all(valid);
 vol           = vol_all(valid);
 subjID        = subjID_all(valid);
-motion_energy = ME_cell_all(valid);
+motion_energy = motion_energy_all(valid);
 rt            = rt_all(valid);
+
+truesessiontrial = allStruct.trialnum(valid);
+truesession = allStruct.session(valid);
 
 nTrials = numel(coh);
 fprintf('Total valid trials: %d\n', nTrials);
@@ -138,8 +143,17 @@ else
     
 end
 
-% prep z-scored residual volatility (resVol)
-[resVol_mat, resVol, cond] = compute_resVol(motion_energy, vol, nBins, winLen, tol);
+% PREP VOL
+% convert to cond (1=low vol, 2=high vol)
+vol_levels = unique(vol(~isnan(vol)));
+if numel(vol_levels) ~= 2
+    warning('Volatility levels are not 2. Check your data!');
+end
+cond = nan(size(vol));
+cond(vol == min(vol_levels)) = 1;
+cond(vol == max(vol_levels)) = 2;
+%residual volatility & z-score
+[resVol_mat, resVol, evidence_strength, volatility_strength] = compute_resVol(motion_energy, vol, nBins, winLen, tol, coh, cond, req);
 
 % prep predicted performance
 switch P_PERF_MODE
@@ -185,7 +199,7 @@ if DO_PLOT_PREDICTORS
     plot_regression_variables
 end
 
-% ===================== 3. Define model families =====================
+%% ===================== 3. Define model families =====================
 % run this to build model family and change the family model by un-comment
 % outer loop controls outcome variable
 switch OUTCOME 
