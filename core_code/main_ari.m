@@ -47,12 +47,12 @@ clear; clc; close all;
 
 %% ===================== SWITCH =====================
 
-% clear;
-%% plot
+% plot
 DO_PLOT_BIG_FIGURE = false;
 DO_PLOT_AICBIC_DOTS  = true;
 DO_PLOT_QUARTER_BAR = false;
 DO_PLOT_PREDICTORS = false;
+DO_INCORR_REG = true; 
 
 useSubjDummies = true;
 
@@ -69,7 +69,7 @@ winLen = 5;
 tol    = 1e-12;
 
 % model family
-MODEL_FAMILY = 'blend'; 
+MODEL_FAMILY = 'blend';  % 'cond' / 'coh' / 'blend'
 % outcome var
 OUTCOME = 'conf'; % can be 'conf', 'acc', 'rt'
 
@@ -92,7 +92,8 @@ subjID_all    = allStruct.group(:);
 motion_energy_all = allStruct.motion_energy;
 rt_all        = allStruct.rt(:);
 
-CORR = 'incorr'; % 'corr' or 'incorr' or 'all'
+%%
+CORR = 'all'; % 'corr' or 'incorr' or 'all'
 switch CORR
     case 'corr'
         valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ~isnan(confCont_all) & correct_all == 1 & ...
@@ -104,6 +105,13 @@ switch CORR
         valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ...
     ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
 end
+
+% ---- exclude coh == 5.12 -----
+drop_highest_coh = true;
+if drop_highest_coh
+    valid_basic = ~isnan(coh_all) & coh_all ~= max(coh_all) & ~isnan(correct_all) & ...
+        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
+end 
 
 
 % ===== try low coh here =====
@@ -133,7 +141,8 @@ fprintf('Total valid trials: %d\n', nTrials);
 
 % ===================== 2. Prep predictors =====================
 % prep z_score confidence 
-ConfY = transform_conf(confCont, subjID);
+
+[ConfY, confCont] = transform_conf(confCont, subjID);
 
 % prep z-score RT
 if DO_USE_RT
@@ -185,6 +194,7 @@ z_cond = zscore(cond);
 log_vol = log(resVol_mat + 1);
 zlog_vol = zscore(log_vol);
 
+
 % SUMMARY!!!
 % for later on anaysis we are using:
 % ConfY (z-scored, n * 1)
@@ -198,6 +208,12 @@ zlog_vol = zscore(log_vol);
 if DO_PLOT_PREDICTORS
     plot_regression_variables
 end
+
+% ===================== 2.75 trialwise dot plot see incorrect trials =====================
+% incorrect trials diff scatter plot - x:coh,y:conf
+% if DO_INCORR_REG 
+%     plot_incorr_reg
+% end 
 
 %% ===================== 3. Define model families =====================
 % run this to build model family and change the family model by un-comment
