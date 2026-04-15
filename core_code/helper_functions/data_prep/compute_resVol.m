@@ -120,40 +120,40 @@ else
 end
 
 %% plotting for each trial
-% figure;
-% tiledlayout(3,1)
-% nexttile;
-% hold on
-% % motion energy mean for trial 1 - low vol
-% plot(evidence_strength(13,:))
-% % motion energy mean for trial 3 - high vol
-% plot(evidence_strength(12,:))
-% title("motion energy mean")
-% xlabel("window")
-% ylabel("evidnce strength")
-% legend({"low vol", "high vol"})
-% 
-% nexttile;
-% hold on
-% % motion energy STD for trial 1 - low vol
-% plot(volatility_strength(13,:))
-% % motion energy STD for trial 3 - high vol
-% plot(volatility_strength(12,:))
-% title("motion energy STD")
-% xlabel("window")
-% ylabel("volatility strength")
-% legend({"low vol", "high vol"})
-% 
-% nexttile;
-% hold on
-% % resVol for trial 1 - low vol
-% plot(resVol(13,:))
-% % resVol for trial 3 - high vol
-% plot(resVol(12,:))
-% title("resVol")
-% xlabel("window")
-% ylabel("resVol strength")
-% legend({"low vol", "high vol"})
+figure;
+tiledlayout(3,1)
+nexttile;
+hold on
+% motion energy mean for trial 1 - low vol
+plot(evidence_strength(9,:))
+% motion energy mean for trial 3 - high vol
+plot(evidence_strength(8,:))
+title("motion energy mean")
+xlabel("window")
+ylabel("evidnce strength")
+legend({"low vol", "high vol"})
+
+nexttile;
+hold on
+% motion energy STD for trial 1 - low vol
+plot(volatility_strength(9,:))
+% motion energy STD for trial 3 - high vol
+plot(volatility_strength(8,:))
+title("motion energy STD")
+xlabel("window")
+ylabel("volatility strength")
+legend({"low vol", "high vol"})
+
+nexttile;
+hold on
+% resVol for trial 1 - low vol
+plot(resVol(9,:))
+% resVol for trial 3 - high vol
+plot(resVol(8,:))
+title("resVol")
+xlabel("window")
+ylabel("resVol strength")
+legend({"low vol", "high vol"})
 
 %% nested plotting loop for each trial (very thin line) and mean, divided by volatility (diff colors) and coherence (diff plots)
 % figure;

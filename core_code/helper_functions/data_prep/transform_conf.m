@@ -1,4 +1,4 @@
-function ConfY = transform_conf(confCont, subjID)
+function [ConfY, confCont] = transform_conf(confCont, subjID)
 % Inputs:
 % confCont : confidence vector
 % subjID   : subject ID vector
@@ -7,6 +7,16 @@ function ConfY = transform_conf(confCont, subjID)
 % ConfY    : z-scored confidence within subject
 
     ConfY = nan(size(confCont));
+
+    for i = 1:length(confCont)
+        if confCont(i) > 1
+            confCont(i) = 1;
+        elseif confCont(i) < 0
+            confCont(i) = 0;
+        else
+            confCont(i) = confCont(i);
+        end
+    end
 
     subj_list = unique(subjID);
     nSubj = numel(subj_list);
