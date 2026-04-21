@@ -8,44 +8,42 @@ tiledlayout;
 
 % plot z-scored confidence (outcome)
 nexttile;
-histogram(ConfY);
+histogram(cfg.ConfY);
 title('OUTCOME: confidence z-scored within subject');
 
 % plot RT
 nexttile;
-histogram(rtX);
+histogram(cfg.rtX);
 title('z-logged RT (R predictor)')
 
 % plot correctness
 nexttile;
-histogram(Correct);
+histogram(cfg.Correct);
 title('accuracy (C predictor)');
 
 % plot coherence
 nexttile;
-histogram(coh_weuse);
+histogram(cfg.coh_weuse);
 title('coherence (Coh predictor)')
 
 % plot performance term
 nexttile;
-switch P_PERF_MODE
+switch cfg.P_PERF_MODE
     case 'online'
-        histogram(p_perf_online); 
+        histogram(cfg.z_perf); 
         title('p perf online (P predictor)'); 
     case 'all'
-        histogram(p_perf_all);
+        histogram(cfg.z_perf);
         title('p perf all (P predictor)');
 end
 
 % plot volatility
 nexttile;
-histogram(resVol_mat);
+histogram(cfg.resVol_mat);
 title('raw volatility (not used)')
 
 % plot z-logged volatility
 nexttile;
-histogram(zlog_vol);
+histogram(cfg.zlog_vol);
 title('zlogged volatility (V predictor)')
 
-% resVol check: volatility per coherence condition
-resVol_check;

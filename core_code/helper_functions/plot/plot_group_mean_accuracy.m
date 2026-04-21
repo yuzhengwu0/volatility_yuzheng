@@ -1,6 +1,6 @@
 % -------------------------------------------------------------------------
 % FLAG: set to 'volatility', 'accuracy', or 'both'
-panel_by = 'both';
+panel_by = 'accuracy';
 % change y-axis variable
 y_var = confCont; % we can change it to 'confCont', 'ConfY', 'rtX'
 % -------------------------------------------------------------------------
@@ -230,3 +230,103 @@ end
 % end
 % 
 % linkaxes(axs2, 'y');
+
+
+%% -------------------------------------------------------------------------
+% Mean Accuracy by Coherence x Volatility (single panel)
+% -------------------------------------------------------------------------
+
+% Put all data into a table
+allData = table(subjID, Correct, coh_weuse, z_cond);
+allData = convertvars(allData, ["subjID", "Correct", "z_cond", "coh_weuse"], "categorical");
+
+% Rename z_cond to volatility labels
+zNumeric_all = str2double(string(allData.z_cond));
+volatilityLabel_all = repmat("", height(allData), 1);
+volatilityLabel_all(zNumeric_all < 0) = "Low Volatility";
+volatilityLabel_all(zNumeric_all > 0) = "High Volatility";
+allData.volatility = categorical(cellstr(volatilityLabel_all), {'Low Volatility', 'High Volatility'});
+
+% Convert Correct to numeric (0/1) for mean accuracy
+allData.correctNum = double(allData.Correct == categorical({'1'}));
+
+% Subject-level means, then group means
+subjectMeans = groupsummary(allData, ["coh_weuse", "volatility", "subjID"], "mean", "correctNum");
+groupMeans   = groupsummary(subjectMeans, ["coh_weuse", "volatility"], ["mean", "std"], "mean_correctNum");
+
+% Back-transform coh_weuse to numeric for sorting/plotting
+cohNumeric     = str2double(string(groupMeans.coh_weuse));
+cohNumeric_sub = str2double(string(subjectMeans.coh_weuse));
+
+cohLevels = sort(unique(cohNumeric));
+nCoh      = numel(cohLevels);
+
+volLevels = {'Low Volatility', 'High Volatility'};
+colors    = {[0.2 0.4 0.8], [0.8 0.2 0.2]};   % blue = low, red = high
+barWidth  = 0.35;
+offsets   = [-0.5, 0.5] * barWidth;
+
+figure;
+hold on;
+
+for k = 1:2
+    yVals   = nan(nCoh, 1);
+    semVals = nan(nCoh, 1);
+    ySubj_all   = cell(nCoh, 1);
+    xJitter_all = cell(nCoh, 1);
+
+    for c = 1:nCoh
+        % Group mean + SEM
+        mask = string(groupMeans.volatility) == volLevels{k} & ...
+               cohNumeric == cohLevels(c);
+        if any(mask)
+            yVals(c)   = groupMeans.mean_mean_correctNum(mask);
+            n          = groupMeans.GroupCount(mask);
+            semVals(c) = groupMeans.std_mean_correctNum(mask) / sqrt(n);
+        end
+
+        % Subject-level points
+        subMask = string(subjectMeans.volatility) == volLevels{k} & ...
+                  cohNumeric_sub == cohLevels(c);
+        if any(subMask)
+            ySubj_all{c}   = subjectMeans.mean_correctNum(subMask);
+            xJitter_all{c} = (c + offsets(k)) + ...
+                             (rand(numel(ySubj_all{c}), 1) - 0.5) * barWidth * 0.4;
+        end
+    end
+
+    xPos = (1:nCoh) + offsets(k);
+
+    % Bars
+    bar(xPos, yVals, barWidth, ...
+        'FaceColor', colors{k}, ...
+        'FaceAlpha', 0.7, ...
+        'DisplayName', volLevels{k});
+
+    % Error bars
+    errorbar(xPos, yVals, semVals, ...
+        'k', 'LineStyle', 'none', ...
+        'LineWidth', 1.5, ...
+        'CapSize', 6, ...
+        'HandleVisibility', 'off');
+
+    % Subject-level scatter
+    for c = 1:nCoh
+        if ~isempty(ySubj_all{c})
+            scatter(xJitter_all{c}, ySubj_all{c}, 30, colors{k}, ...
+                'filled', 'MarkerFaceAlpha', 0.4, ...
+                'MarkerEdgeAlpha', 0, ...
+                'HandleVisibility', 'off');
+        end
+    end
+end
+
+hold off;
+xlabel('Coherence Level');
+ylabel('Mean Accuracy');
+title('Mean Accuracy by Coherence and Volatility');
+xticks(1:nCoh);
+xticklabels(string(cohLevels));
+ylim([0 1]);
+legend('Location', 'best');
+box on;
