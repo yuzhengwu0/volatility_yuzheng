@@ -10,7 +10,7 @@ z_perf  = cfg.z_perf;
 rtX     = cfg.rtX;
 subjID  = cfg.subjID;
 resVol  = cfg.resVol;
-z_cond  = cfg.z_cond;
+cond    = cfg.cond;
 modelNames = cfg.modelNames;
 modelSpec = cfg.modelSpec;
 useSubjDummies = cfg.useSubjDummies;
@@ -33,9 +33,9 @@ for m = 1:nModels
     fprintf('\n=== Fitting %s ===\n', modelNames{m});
 
 
-    labels = {'b0 (Intercept)', 'b_{rt}', 'b_{coh}', 'b_{z_cond}'};
-    coefVarNames = ["(Intercept)", "R", "coh", "z_cond"];
-    baseFormula = "ConfY ~ 1 + R + coh + z_cond";
+    labels = {'b0 (Intercept)', 'b_{rt}', 'b_{coh}', 'b_{cond}'};
+    coefVarNames = ["(Intercept)", "R", "coh", "cond"];
+    baseFormula = "ConfY ~ 1 + R + coh + cond";
 
     % optional one-way terms
 
@@ -53,15 +53,15 @@ for m = 1:nModels
 
     % add Vxz_con
     if modelSpec(m).use2(2)
-        labels{end+1} = 'b_{volxz_cond}';
-        coefVarNames(end+1) = "Vxz_cond";
+        labels{end+1} = 'b_{volxcond}';
+        coefVarNames(end+1) = "Vxcond";
     end
 
 
-    % add Vxcohxz_cond
+    % add Vxcohxcond
     if modelSpec(m).use3
-        labels{end+1} = 'b_{volxcohxz_cond}';
-        coefVarNames(end+1) = "Vxcohxz_cond";
+        labels{end+1} = 'b_{volxcohxcond}';
+        coefVarNames(end+1) = "Vxcohxcond";
     end
 
 
@@ -89,12 +89,12 @@ for m = 1:nModels
         coh = z_coh(mask);
         V   = Vk(mask);
         sID = subjID(mask);
-        z_cond = z_cond(mask);
+        cond = cond(mask);
 
         % interactions
-        Vxz_cond     = V.* z_cond;
+        Vxcond     = V.* cond;
         Vxcoh     = V .* coh;
-        Vxcohxz_cond = V.*coh.*z_cond;
+        Vxcohxcond = V.*coh.*cond;
 
 
         % table
@@ -102,13 +102,13 @@ for m = 1:nModels
             S2 = double(sID == 2);
             S3 = double(sID == 3);
 
-            T = table(y, R, coh, z_cond, V, Vxcoh, Vxz_cond,Vxcohxz_cond,S2, S3, ...
-                'VariableNames', {'ConfY','R','coh','z_cond','V', ...
-                                  'Vxcoh', 'Vxz_cond', 'Vxcohxz_cond', 'S2','S3'});
+            T = table(y, R, coh, cond, V, Vxcoh, Vxcond,Vxcohxcond,S2, S3, ...
+                'VariableNames', {'ConfY','R','coh','cond','V', ...
+                                  'Vxcoh', 'Vxcond', 'Vxcohxcond', 'S2','S3'});
         else
-            T = table(y, R, coh, z_cond, V, Vxcoh, Vxz_cond, Vxcohxz_cond, ...
-                'VariableNames', {'ConfY','R','coh','z_cond','V', ...
-                                   'Vxcoh', 'Vxz_cond', 'Vxcohxz_cond',});
+            T = table(y, R, coh, cond, V, Vxcoh, Vxcond, Vxcohxcond, ...
+                'VariableNames', {'ConfY','R','coh','cond','V', ...
+                                   'Vxcoh', 'Vxcond', 'Vxcohxcond',});
         end
 
         % -------------------------------------------------
@@ -125,11 +125,11 @@ for m = 1:nModels
         end
 
         if modelSpec(m).use2(2)
-            f = f + " + Vxz_cond";
+            f = f + " + Vxcond";
         end
 
        if sum(modelSpec(m).use3) == 1
-            f = f + " + Vxcohxz_cond";
+            f = f + " + Vxcohxcond";
         end
 
         if useSubjDummies

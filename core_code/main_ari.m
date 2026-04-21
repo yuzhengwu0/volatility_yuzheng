@@ -52,9 +52,9 @@ DO_PLOT_BIG_FIGURE = false;
 DO_PLOT_AICBIC_DOTS  = true;
 DO_PLOT_QUARTER_BAR = false;
 DO_PLOT_PREDICTORS = false;
-DO_INCORR_REG = true; 
+DO_INCORR_REG = true;
 
-useSubjDummies = true;
+useSubjDummies = false;
 
 % predictors 
 DO_SPLIT_COH = false; %coh
@@ -107,11 +107,11 @@ switch CORR
 end
 
 % ---- exclude coh == 5.12 -----
-drop_highest_coh = true;
-if drop_highest_coh
-    valid_basic = ~isnan(coh_all) & coh_all ~= max(coh_all) & ~isnan(correct_all) & ...
-        ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
-end 
+% drop_highest_coh = true;
+% if drop_highest_coh
+%     valid_basic = ~isnan(coh_all) & coh_all ~= max(coh_all) & ~isnan(correct_all) & ...
+%         ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
+% end 
 
 
 % ===== try low coh here =====
@@ -163,6 +163,32 @@ cond(vol == min(vol_levels)) = 1;
 cond(vol == max(vol_levels)) = 2;
 %residual volatility & z-score
 [resVol_mat, resVol, evidence_strength, volatility_strength] = compute_resVol(motion_energy, vol, nBins, winLen, tol, coh, cond, req);
+
+% change accuracy definition
+change_accuracy_definition = true;
+if change_accuracy_definition
+    meanme = mean(evidence_strength, 2);
+    for i = 1:length(req)
+        if meanme(i) >= 0
+            req(i) = req(i);
+        else
+            if req(i) == min(req)
+                req(i) = req(i) + 1;
+            elseif req(i) == max(req)
+                req(i) = req(i) - 1;
+            end 
+        end 
+    end 
+end 
+for i = 1:length(Correct)
+    if req(i) == given(i)
+        Correct(i) = 1;
+    else
+        Correct(i) = 0;
+    end 
+end 
+
+
 
 % prep predicted performance
 switch P_PERF_MODE
