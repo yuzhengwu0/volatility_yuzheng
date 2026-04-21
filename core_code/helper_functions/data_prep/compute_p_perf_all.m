@@ -12,26 +12,22 @@ function p_perf_all = compute_p_perf_all(subjID, cond, coh, Correct)
 % NOTE: this predicted performance only contains 12 different kinds of values
 % assigned to all of the trials based on their stimuli category. 
 
-    nTrials = numel(subjID);
-    p_perf_all = nan(nTrials, 1);
+nTrials    = numel(subjID);
+p_perf_all = nan(nTrials, 1);
+subj_list  = unique(subjID(~isnan(subjID)));
+cond_list  = unique(cond(~isnan(cond)));
+coh_list   = unique(coh(~isnan(coh)));
+nSubj      = numel(subj_list);
 
-    subj_list = unique(subjID(~isnan(subjID)));
-    cond_list = unique(cond(~isnan(cond)));
-    coh_list  = unique(coh(~isnan(coh)));
-
-    nSubj = numel(subj_list);
-
-    for iSub = 1:nSubj
-        thisSub = subj_list(iSub);
-
-        for c = cond_list(:)'
-            for h = coh_list(:)'
-                mask = (subjID == thisSub) & (cond == c) & (coh == h);
-                
-                if any(mask)
-                    p_perf_all(mask) = mean(Correct(mask), 'omitnan');
-                end
+for iSub = 1:nSubj
+    thisSub = subj_list(iSub);
+    for c = cond_list(:)'
+        for h = coh_list(:)'
+            mask = (subjID == thisSub) & (cond == c) & (coh == h);
+            if any(mask)
+                p_perf_all(mask) = mean(Correct(mask), 'omitnan');
             end
         end
     end
+end
 end
