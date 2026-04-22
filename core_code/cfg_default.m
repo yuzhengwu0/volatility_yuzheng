@@ -1,7 +1,7 @@
 % ===== situation =====
 cfg.CORR             = 'corr';        % 'all' / 'corr' / 'incorr'
 cfg.DROP_HIGHEST_COH = true;         % remove coh == 512
-cfg.CHANGE_ACCURACY_BY_ME = true;    % true = correct >= ME mean
+cfg.REDEFINE_ANSWER = true;    % true = correct >= ME mean
 
 % ===== predictor =====
 cfg.P_PERF_MODE      = 'online';     % 'all' / 'online'
