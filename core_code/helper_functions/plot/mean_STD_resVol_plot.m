@@ -1,40 +1,40 @@
 %% motion energy mean/STD/resvol plot
 
 %% single trial (two trials)
-% figure;
-% tiledlayout(3,1)
-% nexttile;
-% hold on
-% % motion energy mean for trial 1 - low vol
-% plot(evidence_strength(9,:))
-% % motion energy mean for trial 3 - high vol
-% plot(evidence_strength(8,:))
-% title("motion energy mean")
-% xlabel("window")
-% ylabel("evidnce strength")
-% legend({"low vol", "high vol"})
-% 
-% nexttile;
-% hold on
-% % motion energy STD for trial 1 - low vol
-% plot(volatility_strength(9,:))
-% % motion energy STD for trial 3 - high vol
-% plot(volatility_strength(8,:))
-% title("motion energy STD")
-% xlabel("window")
-% ylabel("volatility strength")
-% legend({"low vol", "high vol"})
-% 
-% nexttile;
-% hold on
-% % resVol for trial 1 - low vol
-% plot(resVol(9,:))
-% % resVol for trial 3 - high vol
-% plot(resVol(8,:))
-% title("resVol")
-% xlabel("window")
-% ylabel("resVol strength")
-% legend({"low vol", "high vol"})
+figure;
+tiledlayout(3,1)
+nexttile;
+hold on
+% motion energy mean for trial 1 - low vol
+plot(evidence_strength(9,:))
+% motion energy mean for trial 3 - high vol
+plot(evidence_strength(8,:))
+title("motion energy mean")
+xlabel("window")
+ylabel("evidnce strength")
+legend({"low vol", "high vol"})
+
+nexttile;
+hold on
+% motion energy STD for trial 1 - low vol
+plot(volatility_strength(9,:))
+% motion energy STD for trial 3 - high vol
+plot(volatility_strength(8,:))
+title("motion energy STD")
+xlabel("window")
+ylabel("volatility strength")
+legend({"low vol", "high vol"})
+
+nexttile;
+hold on
+% resVol for trial 1 - low vol
+plot(resVol(9,:))
+% resVol for trial 3 - high vol
+plot(resVol(8,:))
+title("resVol")
+xlabel("window")
+ylabel("resVol strength")
+legend({"low vol", "high vol"})
 
 %% nested plotting loop for each trial (very thin line) and mean, divided by volatility (diff colors) and coherence (diff plots)
 
@@ -135,3 +135,41 @@ end
 h1 = plot(nan, nan, 'b', 'LineWidth', 2);
 h2 = plot(nan, nan, 'r', 'LineWidth', 2);
 legend([h1 h2], {'low vol', 'high vol'})
+
+
+
+%% trial by trial coherence panel plot (gen by llm)
+
+figure;
+tiledlayout('flow');
+
+thiscoh = unique(cfg.coh);
+
+for tr = 1:size(resVol, 1)
+
+    % which coherence level
+    icoh = find(thiscoh == cfg.coh(tr));
+    nexttile(icoh);
+    hold on;
+
+    % different color for different vol condition
+    if cfg.cond(tr) == 1
+        this_col = [0 0 1];   % blue
+    elseif cfg.cond(tr) == 2
+        this_col = [1 0 0];   % red
+    else
+        continue
+    end
+
+    plot(resVol(tr, :), '-', 'Color', this_col, 'LineWidth', 0.8);
+
+    yline(0, 'HandleVisibility', 'off');
+    ylim([-2.5 5])
+    title(sprintf('coh = %g', cfg.coh(tr)))
+    xlabel('windows')
+    ylabel('resVol')
+
+    sgtitle(sprintf('Current trial = %d | blue = cond 1 | red = cond 2', tr))
+    drawnow;
+    pause;
+end
