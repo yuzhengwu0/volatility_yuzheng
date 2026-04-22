@@ -1,4 +1,4 @@
-function [resVol_mat, resVol, evidence_strength, volatility_strength] = compute_resVol(motion_energy, vol, nBins, winLen, tol, coh, req)
+function [resVol_mat, resVol, evidence_strength, volatility_strength] = compute_resVol(cfg)
 % Compute residual volatility across all trials
 % Also recode volatility into cond:
 %   low vol  -> cond = 1
@@ -9,55 +9,8 @@ function [resVol_mat, resVol, evidence_strength, volatility_strength] = compute_
 %   resVol_time : z-scored residual volatility across all trials and bins
 %   cond        : recoded volatility condition
 
-nTrials = numel(motion_energy);
-
-if numel(vol) ~= nTrials
-    error('vol must have the same number of trials as motion_energy.');
-end
-
-%% ===================== Compute evidence / volatility strength =====================
-mask = req == 2 & coh ~= 0;
-
-for tr = find(mask(:))'
-    motion_energy{tr} = -1 * motion_energy{tr};
-end
-
-nWin_fixed = 36 - winLen + 1;
-evidence_strength   = nan(nTrials, nWin_fixed);
-volatility_strength = nan(nTrials, nWin_fixed);
-
-for tr = 1:nTrials
-    frames = motion_energy{tr};
-    trace  = frames(:)';
-    % last_nz = 38;
-    
-    % if isempty(last_nz)
-    %     continue;
-    % end
-    
-    % only crop bin 3-38
-    trace_eff = trace(3:38);
-    nFrames   = numel(trace_eff);
-    nWin      = nFrames - winLen + 1;
-    
-    if nWin ~= nWin_fixed
-        fprintf('Warning: trial %d has unexpected nWin = %d\n', tr, nWin);
-        continue;
-    end
-    
-    m_win = nan(1, nWin);
-    s_win = nan(1, nWin);
-    
-    % get mean and std(raw vol) in each window
-    for w = 1:nWin
-        seg      = trace_eff(w : w + winLen - 1);
-        m_win(w) = mean(seg);
-        s_win(w) = std(seg);
-    end
-    
-    evidence_strength(tr, :)   = m_win;
-    volatility_strength(tr, :) = s_win;
-end
+evidence_strength = cfg.evidence_strength;
+volatility_strength = cfg.volatility_strength;
 
 
 %% ===================== Residual volatility =====================
