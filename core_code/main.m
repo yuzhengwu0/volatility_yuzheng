@@ -2,19 +2,19 @@ clear; clc; close all;
 
 addpath(genpath('helper_functions/'));
 data_path = '../all_with_me.mat';
-%% re-run this chunk if situation changed
+%% re-run this chunk if configuration changed
 run('cfg_default.m');
 
 % add valid trials filter
 cfg = prep_main(cfg, data_path);
 
 % redefine accuracy 
-if cfg.CHANGE_ACCURACY_BY_ME
-    [~, ~, evidence_strength, ~] = ...
-        compute_resVol(cfg.motion_energy, cfg.vol, cfg.nBins, cfg.winLen, cfg.tol, cfg.coh, cfg.req);
-    cfg.evidence_strength = evidence_strength;
-    cfg = redefine_accuracy(cfg);
+if cfg.REDEFINE_ANSWER
+    redefine_answer_by_ME;
 end
+
+% flipping left trials
+flip_leftward_trials;
 
 %% data prep
 
@@ -30,19 +30,19 @@ cfg.cond = cond;
 
 
 % conf (ConfY: z-scored conf)
-[ConfY, confCont] = transform_conf(cfg.confCont, cfg.subjID);
+[ConfY, confCont] = transform_conf(cfg);
 cfg.ConfY = ConfY;
 cfg.confCont = confCont;
 
 
 % RT (rtX: z-loged rt)
-rtX = transform_rt(cfg.rt, cfg.subjID);
+rtX = transform_rt(cfg);
 cfg.rtX = rtX;
 
 
 % do resVol
 [resVol_mat, resVol, evidence_strength, volatility_strength] = ...
-    compute_resVol(cfg.motion_energy, cfg.vol, cfg.nBins, cfg.winLen, cfg.tol, cfg.coh, cfg.req);
+    compute_resVol(cfg);
 cfg.resVol_mat          = resVol_mat;
 cfg.resVol              = resVol;
 cfg.evidence_strength   = evidence_strength;
@@ -52,10 +52,10 @@ cfg.volatility_strength = volatility_strength;
 % predicted performance
 switch cfg.P_PERF_MODE
     case 'all'
-        p_perf_all = compute_p_perf_all(cfg.subjID, cfg.cond, cfg.coh, cfg.Correct);
+        p_perf_all = compute_p_perf_all(cfg);
         z_perf = zscore(p_perf_all);
     case 'online'
-        [p_perf_online, combination_counter, combination_performance] = compute_p_perf_online(cfg.subjID, cfg.cond, cfg.coh, cfg.Correct);
+        [p_perf_online, combination_counter, combination_performance] = compute_p_perf_online(cfg);
         z_perf = zscore(p_perf_online);
 end
 cfg.z_perf = z_perf;
