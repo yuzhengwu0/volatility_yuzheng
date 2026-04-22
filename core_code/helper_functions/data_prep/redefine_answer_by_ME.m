@@ -1,4 +1,7 @@
 % redefine answer by ME
+% changed after this script:
+% 1. req: left/right correct answer based on the mean motion energy
+% 2. Correct: updated req == given
 
 motion_energy = cfg.motion_energy;
 req = cfg.req;
@@ -19,11 +22,11 @@ end
 meanme = mean(motion_mat, 2, 'omitnan');
 for i = 1:length(meanme)
     if meanme(i) < 0
-        req(i) = 1;
+        req(i) = 2;
     elseif meanme(i) ==0
         fprint('a trial ==0');
     else
-        req(i) = 2;
+        req(i) = 1;
     end
 end
 
@@ -36,5 +39,6 @@ for i = 1:length(answer_by_ME)
 end
 
 cfg.motion_energy = motion_energy;
+cfg.motion_mat = motion_mat;
 cfg.req = req;
 cfg.Correct = Correct;
