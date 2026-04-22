@@ -1,10 +1,13 @@
-function [ConfY, confCont] = transform_conf(confCont, subjID)
+function [ConfY, confCont] = transform_conf(cfg)
 % Inputs:
 % confCont : confidence vector
 % subjID   : subject ID vector
 %
 % Output:
 % ConfY    : z-scored confidence within subject
+
+confCont = cfg.confCont;
+subjID = cfg.subjID;
 
     ConfY = nan(size(confCont));
 

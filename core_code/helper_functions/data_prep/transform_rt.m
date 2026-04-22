@@ -1,10 +1,13 @@
-function rtX = transform_rt(rt, subjID)
+function rtX = transform_rt(cfg)
 % Inputs:
 % rt       : raw RT vector
 % subjID   : subject ID vector
 %
 % Output:
 % rtX    : z-scored RT within subject
+
+rt = cfg.rt;
+subjID = cfg.subjID;
 
     rtX = nan(size(rt));
 
