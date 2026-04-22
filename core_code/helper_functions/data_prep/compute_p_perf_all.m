@@ -1,4 +1,4 @@
-function p_perf_all = compute_p_perf_all(subjID, cond, coh, Correct)
+function p_perf_all = compute_p_perf_all(cfg)
 % Input:
 %   subjID   : subject ID vector
 %   cond     : condition vector (volatility -> low/high coded as 1/2)
@@ -11,6 +11,11 @@ function p_perf_all = compute_p_perf_all(subjID, cond, coh, Correct)
 % 
 % NOTE: this predicted performance only contains 12 different kinds of values
 % assigned to all of the trials based on their stimuli category. 
+
+subjID = cfg.subjID;
+cond = cfg.cond;
+coh = cfg.coh;
+Correct = cfg.Correct;
 
 nTrials    = numel(subjID);
 p_perf_all = nan(nTrials, 1);

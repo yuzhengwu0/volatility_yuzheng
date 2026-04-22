@@ -1,4 +1,4 @@
-function [p_perf_online, combination_counter, combination_performance] = compute_p_perf_online(subjID, cond, coh, Correct)
+function [p_perf_online, combination_counter, combination_performance] = compute_p_perf_online(cfg)
 % Compute cumulative performance estimate within each subject, separately for
 % each condition × coherence combination.
 %
@@ -12,6 +12,11 @@ function [p_perf_online, combination_counter, combination_performance] = compute
 %   p_perf_online           : online performance estimate for each trial
 %   combination_counter     : trial counter for each subject × combination
 %   combination_performance : accumulated correct count for each subject × combination
+
+subjID = cfg.subjID;
+cond = cfg.cond;
+coh = cfg.coh;
+Correct = cfg.Correct;
 
     nTrials = numel(subjID);
 
