@@ -78,7 +78,7 @@ mean_STD_resVol_plot
 %% exclude criteria
 % exclude coh == 512
 if cfg.DROP_HIGHEST_COH
-    keep_coh = (cfg.coh ~= 512);
+    keep_coh = (cfg.coh_weuse ~= 5.12);
 else
     keep_coh = true(size(cfg.coh));
 end
@@ -101,23 +101,23 @@ cfg.keep = keep;
 valid = cfg.keep;
 
 % update other parameters
-ConfY               = cfg.ConfY(valid);
-confCont            = cfg.confCont(valid);
-Correct             = cfg.Correct(valid);
-z_perf              = cfg.z_perf(valid);
-rtX                 = cfg.rtX(valid);
-subjID              = cfg.subjID(valid);
-coh                 = cfg.coh(valid);
-cond                = cfg.cond(valid);
-vol                 = cfg.vol(valid);
-req                 = cfg.req(valid);
-given               = cfg.given(valid);
-coh_weuse           = cfg.coh_weuse(valid);
-resVol              = cfg.resVol(valid, :);
-resVol_mat          = cfg.resVol_mat(valid, :);
-zlog_vol            = cfg.zlog_vol(valid, :);
-evidence_strength   = cfg.evidence_strength(valid, :);
-volatility_strength = cfg.volatility_strength(valid, :);
+cfg.ConfY               = cfg.ConfY(valid);
+cfg.confCont            = cfg.confCont(valid);
+cfg.Correct             = Correct(valid);
+cfg.z_perf              = cfg.z_perf(valid);
+cfg.rtX                 = cfg.rtX(valid);
+cfg.subjID              = cfg.subjID(valid);
+cfg.coh                 = cfg.coh(valid);
+cfg.cond                = cfg.cond(valid);
+cfg.vol                 = cfg.vol(valid);
+cfg.req                 = cfg.req(valid);
+cfg.given               = cfg.given(valid);
+cfg.coh_weuse           = cfg.coh_weuse(valid);
+cfg.resVol              = cfg.resVol(valid, :);
+cfg.resVol_mat          = cfg.resVol_mat(valid, :);
+cfg.zlog_vol            = cfg.zlog_vol(valid, :);
+cfg.evidence_strength   = cfg.evidence_strength(valid, :);
+cfg.volatility_strength = cfg.volatility_strength(valid, :);
 
 
 % output amount of trials
@@ -141,9 +141,14 @@ mean_STD_resVol_plot
 
 
 
-%% POLLED
+%% POLLED -- group
 
+plot_group_mean_accuracy
 
+plot_group_means_byCond
+
+% purple and green regression plot
+get_individual_betas
 
 
 %% fitting and running models
