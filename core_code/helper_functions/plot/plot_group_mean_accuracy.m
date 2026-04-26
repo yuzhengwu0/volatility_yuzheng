@@ -1,4 +1,12 @@
 % -------------------------------------------------------------------------
+subjID = cfg.subjID;
+z_cond = cfg.cond;
+Correct = cfg.Correct;
+coh_weuse = cfg.coh_weuse;
+confCont = cfg.confCont;
+
+
+
 % FLAG: set to 'volatility', 'accuracy', or 'both'
 panel_by = 'accuracy';
 % change y-axis variable
@@ -13,8 +21,8 @@ allData = convertvars(allData, ["subjID", "Correct", "z_cond", "coh_weuse"], "ca
 % Rename z_cond to volatility labels early
 zNumeric_all = str2double(string(allData.z_cond));
 volatilityLabel_all = repmat("", height(allData), 1);
-volatilityLabel_all(zNumeric_all < 0) = "Low Volatility";
-volatilityLabel_all(zNumeric_all > 0) = "High Volatility";
+volatilityLabel_all(zNumeric_all == 1) = "Low Volatility";
+volatilityLabel_all(zNumeric_all == 2) = "High Volatility";
 allData.volatility = categorical(cellstr(volatilityLabel_all), {'Low Volatility', 'High Volatility'});
 
 % mean confidence in each accuracy x coherence x condition cell

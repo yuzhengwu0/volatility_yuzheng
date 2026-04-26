@@ -1,4 +1,9 @@
 %% get individual betas
+coh_weuse = cfg.coh_weuse;
+Correct = cfg. Correct;
+cond = cfg.cond;
+subjID = cfg.subjID;
+ConfY = cfg.ConfY;
 
 %fitted_models = struct();
 y_var = ConfY; % 'confCont' / 'ConfY' / 'rtX'

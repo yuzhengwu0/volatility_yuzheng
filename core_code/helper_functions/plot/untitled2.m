@@ -1,4 +1,8 @@
 %% get individual betas
+subjID = cfg.subjID;
+Correct = cfg.Correct;
+cond = cfg.cond;
+
 
 fitted_models = struct();
 

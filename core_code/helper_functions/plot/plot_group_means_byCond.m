@@ -1,4 +1,10 @@
 % -------------------------------------------------------------------------
+subjID = cfg.subjID;
+z_cond = cfg.cond;
+Correct = cfg.Correct;
+coh_weuse = cfg.coh_weuse;
+confCont = cfg.confCont;
+
 % FLAG: set to 'volatility', 'accuracy', or 'both'
 panel_by = 'both';
 % change y-axis variable
