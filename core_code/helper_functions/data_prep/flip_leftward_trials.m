@@ -1,6 +1,5 @@
 %% change accuracy by ME
 
-motion_energy = cfg.motion_energy;
 motion_mat = cfg.motion_mat;
 req = cfg.req;
 coh = cfg.coh;
