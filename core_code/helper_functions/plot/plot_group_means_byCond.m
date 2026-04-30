@@ -19,8 +19,8 @@ allData = convertvars(allData, ["subjID", "Correct", "z_cond", "coh_weuse"], "ca
 % Rename z_cond to volatility labels early
 zNumeric_all = str2double(string(allData.z_cond));
 volatilityLabel_all = repmat("", height(allData), 1);
-volatilityLabel_all(zNumeric_all < 0) = "Low Volatility";
-volatilityLabel_all(zNumeric_all > 0) = "High Volatility";
+volatilityLabel_all(zNumeric_all == 1) = "Low Volatility";
+volatilityLabel_all(zNumeric_all == 2) = "High Volatility";
 allData.volatility = categorical(cellstr(volatilityLabel_all), {'Low Volatility', 'High Volatility'});
 
 % mean confidence in each accuracy x coherence x condition cell
@@ -71,13 +71,13 @@ tiledlayout(nRows, nCols, 'TileSpacing', 'compact', 'Padding', 'compact');
 axs = gobjects(nRows, nCols);
 
 for r = 1:nRows
-    cfg = configs{r};
+    plotcfg = configs{r};
 
-    for f = 1:numel(cfg.panelLevels)
+    for f = 1:numel(plotcfg.panelLevels)
         axs(r, f) = nexttile;
         hold on;
 
-        for k = 1:numel(cfg.colorLevels)
+        for k = 1:numel(plotcfg.colorLevels)
             yVals   = nan(nCoh, 1);
             semVals = nan(nCoh, 1);
             
@@ -87,9 +87,9 @@ for r = 1:nRows
 
             for c = 1:nCoh
                 % Group mean + SEM
-                mask = cfg.panelVar == cfg.panelLevels(f) & ...
+                mask = plotcfg.panelVar == plotcfg.panelLevels(f) & ...
                        cohNumeric == cohLevels(c) & ...
-                       cfg.colorVar == cfg.colorLevels(k);
+                       plotcfg.colorVar == plotcfg.colorLevels(k);
 
                 if any(mask)
                     yVals(c)   = groupMeans.mean_mean_y_var(mask);
@@ -98,9 +98,9 @@ for r = 1:nRows
                 end
 
                 % Collect subject points for later
-                subMask = cfg.panelVar_sub == cfg.panelLevels(f) & ...
+                subMask = plotcfg.panelVar_sub == plotcfg.panelLevels(f) & ...
                           cohNumeric_sub == cohLevels(c) & ...
-                          cfg.colorVar_sub == cfg.colorLevels(k);
+                          plotcfg.colorVar_sub == plotcfg.colorLevels(k);
 
                 if any(subMask)
                     ySubj_all{c} = subjectMeans.mean_y_var(subMask);
@@ -112,9 +112,9 @@ for r = 1:nRows
             % Bars
             xPos = (1:nCoh) + offsets(k);
             bar(xPos, yVals, barWidth, ...
-                'FaceColor', cfg.colors{k}, ...
+                'FaceColor', plotcfg.colors{k}, ...
                 'FaceAlpha', 0.7, ...
-                'DisplayName', cfg.colorLabels{k});
+                'DisplayName', plotcfg.colorLabels{k});
 
             % Error bars
             errorbar(xPos, yVals, semVals, ...
@@ -126,7 +126,7 @@ for r = 1:nRows
             % Subject points on top
             for c = 1:nCoh
                 if ~isempty(ySubj_all{c})
-                    scatter(xJitter_all{c}, ySubj_all{c}, 30, cfg.colors{k}, ...
+                    scatter(xJitter_all{c}, ySubj_all{c}, 30, plotcfg.colors{k}, ...
                         'filled', 'MarkerFaceAlpha', 0.4, ...
                         'MarkerEdgeAlpha', 0, ...
                         'HandleVisibility', 'off');
@@ -137,7 +137,7 @@ for r = 1:nRows
         hold off;
         xlabel('Coherence Level');
         ylabel('Mean Confidence');
-        title(cfg.panelTitles{f});
+        title(plotcfg.panelTitles{f});
         xticks(1:nCoh);
         xticklabels(string(cohLevels));
         legend('Location', 'best');
@@ -160,27 +160,27 @@ end
 % axs2 = gobjects(nRows, 1);
 % 
 % for r = 1:nRows
-%     cfg = configs{r};
+%     plotcfg = configs{r};
 %     axs2(r) = nexttile;
 %     hold on;
 % 
-%     for k = 1:numel(cfg.colorLevels)
+%     for k = 1:numel(plotcfg.colorLevels)
 % 
 %         % Group mean + SEM
-%         mask = cfg.panelVar == cfg.panelLevels(1) & ...  % dummy - overwritten below
+%         mask = plotcfg.panelVar == plotcfg.panelLevels(1) & ...  % dummy - overwritten below
 %                cohNumeric == maxCoh & ...
-%                cfg.colorVar == cfg.colorLevels(k);
+%                plotcfg.colorVar == plotcfg.colorLevels(k);
 % 
 %         % collect across panels (i.e. across volatility or accuracy levels)
-%         yVals   = nan(numel(cfg.panelLevels), 1);
-%         semVals = nan(numel(cfg.panelLevels), 1);
-%         ySubj_all   = cell(numel(cfg.panelLevels), 1);
-%         xJitter_all = cell(numel(cfg.panelLevels), 1);
+%         yVals   = nan(numel(plotcfg.panelLevels), 1);
+%         semVals = nan(numel(plotcfg.panelLevels), 1);
+%         ySubj_all   = cell(numel(plotcfg.panelLevels), 1);
+%         xJitter_all = cell(numel(plotcfg.panelLevels), 1);
 % 
-%         for f = 1:numel(cfg.panelLevels)
-%             mask = cfg.panelVar == cfg.panelLevels(f) & ...
+%         for f = 1:numel(plotcfg.panelLevels)
+%             mask = plotcfg.panelVar == plotcfg.panelLevels(f) & ...
 %                    cohNumeric == maxCoh & ...
-%                    cfg.colorVar == cfg.colorLevels(k);
+%                    plotcfg.colorVar == plotcfg.colorLevels(k);
 % 
 %             if any(mask)
 %                 yVals(f)   = groupMeans.mean_mean_y_var(mask);
@@ -188,9 +188,9 @@ end
 %                 semVals(f) = groupMeans.std_mean_y_var(mask) / sqrt(n);
 %             end
 % 
-%             subMask = cfg.panelVar_sub == cfg.panelLevels(f) & ...
+%             subMask = plotcfg.panelVar_sub == plotcfg.panelLevels(f) & ...
 %                       cohNumeric_sub == maxCoh & ...
-%                       cfg.colorVar_sub == cfg.colorLevels(k);
+%                       plotcfg.colorVar_sub == plotcfg.colorLevels(k);
 % 
 %             if any(subMask)
 %                 ySubj_all{f}   = subjectMeans.mean_y_var(subMask);
@@ -200,11 +200,11 @@ end
 %         end
 % 
 %         % Bars
-%         xPos = (1:numel(cfg.panelLevels)) + offsets(k);
+%         xPos = (1:numel(plotcfg.panelLevels)) + offsets(k);
 %         bar(xPos, yVals, barWidth, ...
-%             'FaceColor', cfg.colors{k}, ...
+%             'FaceColor', plotcfg.colors{k}, ...
 %             'FaceAlpha', 0.7, ...
-%             'DisplayName', cfg.colorLabels{k});
+%             'DisplayName', plotcfg.colorLabels{k});
 % 
 %         % Error bars
 %         errorbar(xPos, yVals, semVals, ...
@@ -214,9 +214,9 @@ end
 %             'HandleVisibility', 'off');
 % 
 %         % Subject points on top
-%         for f = 1:numel(cfg.panelLevels)
+%         for f = 1:numel(plotcfg.panelLevels)
 %             if ~isempty(ySubj_all{f})
-%                 scatter(xJitter_all{f}, ySubj_all{f}, 30, cfg.colors{k}, ...
+%                 scatter(xJitter_all{f}, ySubj_all{f}, 30, plotcfg.colors{k}, ...
 %                     'filled', 'MarkerFaceAlpha', 0.4, ...
 %                     'MarkerEdgeAlpha', 0, ...
 %                     'HandleVisibility', 'off');
@@ -228,9 +228,9 @@ end
 %     xlabel('');
 %     ylabel('Mean Confidence');
 %     title(sprintf('Highest Coherence (%.2f) — grouped by %s', maxCoh, ...
-%           cfg.panelTitles{1}(1:find(isspace(cfg.panelTitles{1}),1)-1)));
-%     xticks(1:numel(cfg.panelLevels));
-%     xticklabels(cfg.panelTitles);
+%           plotcfg.panelTitles{1}(1:find(isspace(plotcfg.panelTitles{1}),1)-1)));
+%     xticks(1:numel(plotcfg.panelLevels));
+%     xticklabels(plotcfg.panelTitles);
 %     legend('Location', 'best');
 %     box on;
 % end
