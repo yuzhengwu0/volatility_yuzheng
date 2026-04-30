@@ -9,9 +9,7 @@ run('cfg_default.m');
 cfg = prep_main(cfg, data_path);
 
 % redefine accuracy 
-if cfg.REDEFINE_ANSWER
-    redefine_answer_by_ME;
-end
+prep_answer_and_ME;
 
 % flipping left trials
 flip_leftward_trials;
@@ -41,7 +39,7 @@ cfg.rtX = rtX;
 
 
 % do resVol
-[resVol_mat, resVol, evidence_strength, volatility_strength] = ...
+[resVol_mat, resVol, evidence_strength, volatility_strength, cfg] = ...
     compute_resVol(cfg);
 cfg.resVol_mat          = resVol_mat;
 cfg.resVol              = resVol;
@@ -74,6 +72,8 @@ plot_regression_variables
 % mean STD resVol check (red blue big graph)
 mean_STD_resVol_plot
 
+% volatility distribution check (scatter plot)
+vol_distribution_scatter_plot
 
 %% exclude criteria
 % exclude coh == 512
@@ -142,9 +142,10 @@ mean_STD_resVol_plot
 
 
 %% POLLED -- group
-
+% bar graph (mean accuracy)
 plot_group_mean_accuracy
 
+% bar graph (mean confidence)
 plot_group_means_byCond
 
 % purple and green regression plot
