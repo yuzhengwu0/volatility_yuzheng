@@ -24,10 +24,10 @@ if cfg.REDEFINE_ANSWER
     for i = 1:length(meanme)
         if meanme(i) < 0
             req(i) = 2;
-        elseif meanme(i) ==0
-            fprint('a trial ==0');
-        else
+        elseif meanme(i) > 0
             req(i) = 1;
+        else
+            req(i) = NaN;
         end
     end
     
