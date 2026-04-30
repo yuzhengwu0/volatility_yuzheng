@@ -1,4 +1,10 @@
 %% motion energy mean/STD/resvol plot
+evidence_strength = cfg.evidence_strength;
+volatility_strength = cfg.volatility_strength;
+resVol = cfg.resVol;
+coh = cfg.coh;
+cond = cfg.cond;
+
 
 %% single trial (two trials)
 figure;
@@ -40,23 +46,23 @@ legend({"low vol", "high vol"})
 
 clear yline
 figure;
-tiledlayout(length(unique(cfg.coh)), 3)
+tiledlayout(length(unique(coh)), 3)
 
-thiscoh = unique(cfg.coh);
+thiscoh = unique(coh);
 for icoh = 1:numel(thiscoh)
 
     %evidence strength
     nexttile;
     hold on;
     % cond == 1
-    idx1 = (cfg.coh == thiscoh(icoh)) & (cfg.cond == 1);
+    idx1 = (coh == thiscoh(icoh)) & (cond == 1);
     data1 = evidence_strength(idx1, :);
     plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
     mu1 = mean(data1, 1, 'omitnan');
     % sd1 = std(data1, 0, 1, 'omitnan');
 
     % cond == 2
-    idx2 = (cfg.coh == thiscoh(icoh)) & (cfg.cond == 2);
+    idx2 = (coh == thiscoh(icoh)) & (cond == 2);
     data2 = evidence_strength(idx2, :);
     plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
     mu2 = mean(data2, 1, 'omitnan');
@@ -78,14 +84,14 @@ for icoh = 1:numel(thiscoh)
     nexttile;
     hold on;
     % cond == 1
-    idx1 = (cfg.coh == thiscoh(icoh)) & (cfg.cond == 1);
+    idx1 = (coh == thiscoh(icoh)) & (cond == 1);
     data1 = volatility_strength(idx1, :);
     plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
     mu1 = mean(data1, 1, 'omitnan');
     % sd1 = std(data1, 0, 1, 'omitnan');
 
     % cond == 2
-    idx2 = (cfg.coh == thiscoh(icoh)) & (cfg.cond == 2);
+    idx2 = (coh == thiscoh(icoh)) & (cond == 2);
     data2 = volatility_strength(idx2, :);
     plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
     mu2 = mean(data2, 1, 'omitnan');
@@ -107,14 +113,14 @@ for icoh = 1:numel(thiscoh)
     nexttile;
     hold on;
     % cond == 1
-    idx1 = (cfg.coh == thiscoh(icoh)) & (cfg.cond == 1);
+    idx1 = (coh == thiscoh(icoh)) & (cond == 1);
     data1 = resVol(idx1, :);
     plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
     mu1 = mean(data1, 1, 'omitnan');
     % sd1 = std(data1, 0, 1, 'omitnan');
 
     % cond == 2
-    idx2 = (cfg.coh == thiscoh(icoh)) & (cfg.cond == 2);
+    idx2 = (coh == thiscoh(icoh)) & (cond == 2);
     data2 = resVol(idx2, :);
     plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
     mu2 = mean(data2, 1, 'omitnan');
@@ -139,37 +145,37 @@ legend([h1 h2], {'low vol', 'high vol'})
 
 
 %% trial by trial coherence panel plot (gen by llm)
-
-figure;
-tiledlayout('flow');
-
-thiscoh = unique(cfg.coh);
-
-for tr = 1:size(resVol, 1)
-
-    % which coherence level
-    icoh = find(thiscoh == cfg.coh(tr));
-    nexttile(icoh);
-    hold on;
-
-    % different color for different vol condition
-    if cfg.cond(tr) == 1
-        this_col = [0 0 1];   % blue
-    elseif cfg.cond(tr) == 2
-        this_col = [1 0 0];   % red
-    else
-        continue
-    end
-
-    plot(resVol(tr, :), '-', 'Color', this_col, 'LineWidth', 0.8);
-
-    yline(0, 'HandleVisibility', 'off');
-    ylim([-2.5 5])
-    title(sprintf('coh = %g', cfg.coh(tr)))
-    xlabel('windows')
-    ylabel('resVol')
-
-    sgtitle(sprintf('Current trial = %d | blue = cond 1 | red = cond 2', tr))
-    drawnow;
-    pause;
-end
+% 
+% figure;
+% tiledlayout('flow');
+% 
+% thiscoh = unique(coh);
+% 
+% for tr = 1:size(resVol, 1)
+% 
+%     % which coherence level
+%     icoh = find(thiscoh == coh(tr));
+%     nexttile(icoh);
+%     hold on;
+% 
+%     % different color for different vol condition
+%     if cond(tr) == 1
+%         this_col = [0 0 1];   % blue
+%     elseif cond(tr) == 2
+%         this_col = [1 0 0];   % red
+%     else
+%         continue
+%     end
+% 
+%     plot(resVol(tr, :), '-', 'Color', this_col, 'LineWidth', 0.8);
+% 
+%     yline(0, 'HandleVisibility', 'off');
+%     ylim([-2.5 5])
+%     title(sprintf('coh = %g', coh(tr)))
+%     xlabel('windows')
+%     ylabel('resVol')
+% 
+%     sgtitle(sprintf('Current trial = %d | blue = cond 1 | red = cond 2', tr))
+%     drawnow;
+%     pause;
+% end
