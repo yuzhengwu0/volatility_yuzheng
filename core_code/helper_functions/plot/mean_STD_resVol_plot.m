@@ -1,9 +1,15 @@
 %% motion energy mean/STD/resvol plot
-evidence_strength = cfg.evidence_strength;
-volatility_strength = cfg.volatility_strength;
-resVol = cfg.resVol;
+%evidence_strength = cfg.evidence_strength;
+%volatility_strength = cfg.volatility_strength;
+%resVol = cfg.resVol;
 coh = cfg.coh;
 cond = cfg.cond;
+motion_mat = cfg.motion_mat;
+motion_energy = cfg.motion_energy;
+
+
+%% raw motion energy plot - by vol and coh
+
 
 
 %% single trial (two trials)
@@ -46,97 +52,129 @@ legend({"low vol", "high vol"})
 
 clear yline
 figure;
-tiledlayout(length(unique(coh)), 3)
+tiledlayout(length(unique(coh)), 1)
 
 thiscoh = unique(coh);
 for icoh = 1:numel(thiscoh)
 
-    %evidence strength
+    % raw motion energy
     nexttile;
     hold on;
     % cond == 1
     idx1 = (coh == thiscoh(icoh)) & (cond == 1);
-    data1 = evidence_strength(idx1, :);
+    data1 = motion_mat(idx1, :);
     plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
     mu1 = mean(data1, 1, 'omitnan');
     % sd1 = std(data1, 0, 1, 'omitnan');
 
     % cond == 2
     idx2 = (coh == thiscoh(icoh)) & (cond == 2);
-    data2 = evidence_strength(idx2, :);
+    data2 = motion_mat(idx2, :);
     plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
     mu2 = mean(data2, 1, 'omitnan');
     % sd2 = std(data2, 0, 1, 'omitnan');
 
-    x = 1:size(evidence_strength, 2);
+    x = 1:size(motion_mat, 2);
     plot(x, mu1, 'b', 'LineWidth', 1.5)
     plot(x, mu2, 'r', 'LineWidth', 1.5)
     % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
     % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
 
-    ylim([-0.0002 0.0005])
+    ylim([-0.0005 0.0005])
     title(sprintf('coh = %g', thiscoh(icoh)))
     xlabel('windows')
-    ylabel('evidence strength')
+    ylabel('raw motion energy')
     yline(0, 'HandleVisibility', 'off');
 
-    %volatility strength
-    nexttile;
-    hold on;
-    % cond == 1
-    idx1 = (coh == thiscoh(icoh)) & (cond == 1);
-    data1 = volatility_strength(idx1, :);
-    plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
-    mu1 = mean(data1, 1, 'omitnan');
-    % sd1 = std(data1, 0, 1, 'omitnan');
 
-    % cond == 2
-    idx2 = (coh == thiscoh(icoh)) & (cond == 2);
-    data2 = volatility_strength(idx2, :);
-    plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
-    mu2 = mean(data2, 1, 'omitnan');
-    % sd2 = std(data2, 0, 1, 'omitnan');
 
-    x = 1:size(volatility_strength, 2);
-    plot(x, mu1, 'b', 'LineWidth', 1.5)
-    plot(x, mu2, 'r', 'LineWidth', 1.5);
-    % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
-    % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
 
-    ylim([0 0.0002])
-    title(sprintf('coh = %g', thiscoh(icoh)))
-    xlabel('windows')
-    ylabel('volatility strength')
-    yline(0, 'HandleVisibility', 'off');
+    % %evidence strength
+    % nexttile;
+    % hold on;
+    % % cond == 1
+    % idx1 = (coh == thiscoh(icoh)) & (cond == 1);
+    % data1 = evidence_strength(idx1, :);
+    % plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
+    % mu1 = mean(data1, 1, 'omitnan');
+    % % sd1 = std(data1, 0, 1, 'omitnan');
+    % 
+    % % cond == 2
+    % idx2 = (coh == thiscoh(icoh)) & (cond == 2);
+    % data2 = evidence_strength(idx2, :);
+    % plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
+    % mu2 = mean(data2, 1, 'omitnan');
+    % % sd2 = std(data2, 0, 1, 'omitnan');
+    % 
+    % x = 1:size(evidence_strength, 2);
+    % plot(x, mu1, 'b', 'LineWidth', 1.5)
+    % plot(x, mu2, 'r', 'LineWidth', 1.5)
+    % % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
+    % % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
+    % 
+    % ylim([-0.0002 0.0005])
+    % title(sprintf('coh = %g', thiscoh(icoh)))
+    % xlabel('windows')
+    % ylabel('evidence strength')
+    % yline(0, 'HandleVisibility', 'off');
 
-    % resVol
-    nexttile;
-    hold on;
-    % cond == 1
-    idx1 = (coh == thiscoh(icoh)) & (cond == 1);
-    data1 = resVol(idx1, :);
-    plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
-    mu1 = mean(data1, 1, 'omitnan');
-    % sd1 = std(data1, 0, 1, 'omitnan');
-
-    % cond == 2
-    idx2 = (coh == thiscoh(icoh)) & (cond == 2);
-    data2 = resVol(idx2, :);
-    plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
-    mu2 = mean(data2, 1, 'omitnan');
-    % sd2 = std(data2, 0, 1, 'omitnan');
-
-    x = 1:size(resVol, 2);
-    plot(x, mu1, 'b', 'LineWidth', 1.5)
-    plot(x, mu2, 'r', 'LineWidth', 1.5)
-    % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
-    % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
-
-    ylim([-2.5 5])
-    title(sprintf('coh = %g', thiscoh(icoh)))
-    xlabel('windows')
-    ylabel('resVol')
-    yline(0, 'HandleVisibility', 'off');
+    % %volatility strength
+    % nexttile;
+    % hold on;
+    % % cond == 1
+    % idx1 = (coh == thiscoh(icoh)) & (cond == 1);
+    % data1 = volatility_strength(idx1, :);
+    % plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
+    % mu1 = mean(data1, 1, 'omitnan');
+    % % sd1 = std(data1, 0, 1, 'omitnan');
+    % 
+    % % cond == 2
+    % idx2 = (coh == thiscoh(icoh)) & (cond == 2);
+    % data2 = volatility_strength(idx2, :);
+    % plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
+    % mu2 = mean(data2, 1, 'omitnan');
+    % % sd2 = std(data2, 0, 1, 'omitnan');
+    % 
+    % x = 1:size(volatility_strength, 2);
+    % plot(x, mu1, 'b', 'LineWidth', 1.5)
+    % plot(x, mu2, 'r', 'LineWidth', 1.5);
+    % % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
+    % % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
+    % 
+    % ylim([0 0.0002])
+    % title(sprintf('coh = %g', thiscoh(icoh)))
+    % xlabel('windows')
+    % ylabel('volatility strength')
+    % yline(0, 'HandleVisibility', 'off');
+    % 
+    % % resVol
+    % nexttile;
+    % hold on;
+    % % cond == 1
+    % idx1 = (coh == thiscoh(icoh)) & (cond == 1);
+    % data1 = resVol(idx1, :);
+    % plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
+    % mu1 = mean(data1, 1, 'omitnan');
+    % % sd1 = std(data1, 0, 1, 'omitnan');
+    % 
+    % % cond == 2
+    % idx2 = (coh == thiscoh(icoh)) & (cond == 2);
+    % data2 = resVol(idx2, :);
+    % plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
+    % mu2 = mean(data2, 1, 'omitnan');
+    % % sd2 = std(data2, 0, 1, 'omitnan');
+    % 
+    % x = 1:size(resVol, 2);
+    % plot(x, mu1, 'b', 'LineWidth', 1.5)
+    % plot(x, mu2, 'r', 'LineWidth', 1.5)
+    % % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
+    % % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
+    % 
+    % ylim([-2.5 5])
+    % title(sprintf('coh = %g', thiscoh(icoh)))
+    % xlabel('windows')
+    % ylabel('resVol')
+    % yline(0, 'HandleVisibility', 'off');
 end
 h1 = plot(nan, nan, 'b', 'LineWidth', 2);
 h2 = plot(nan, nan, 'r', 'LineWidth', 2);
