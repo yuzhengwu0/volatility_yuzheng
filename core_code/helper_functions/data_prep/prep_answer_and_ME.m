@@ -1,7 +1,7 @@
 % redefine answer by ME
 % changed after this script:
 % 1. req: left/right correct answer based on the mean motion energy
-% 2. Correct: updated req == given
+% 2. Correct: updated newer version as correctness defined
 
 motion_energy = cfg.motion_energy;
 req = cfg.req;

@@ -1,7 +1,8 @@
 % ===== situation =====
 cfg.CORR             = 'all';        % 'all' / 'corr' / 'incorr'
-cfg.DROP_HIGHEST_COH = true;         % remove coh == 512
-cfg.REDEFINE_ANSWER = true;    % true = correct >= ME mean
+cfg.DROP_HIGHEST_COH = false;         % remove coh == 512
+cfg.REDEFINE_ANSWER  = false;    % true = correct >= ME mean
+cfg.FLIPPING         = false;
 
 % ===== predictor =====
 cfg.P_PERF_MODE      = 'online';     % 'all' / 'online'

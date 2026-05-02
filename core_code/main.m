@@ -8,11 +8,19 @@ run('cfg_default.m');
 % add valid trials filter
 cfg = prep_main(cfg, data_path);
 
-% redefine accuracy 
+% redefine accuracy
 prep_answer_and_ME;
 
+cond = nan(size(cfg.vol));
+cond(cfg.vol == min(cfg.vol)) = 1;
+cond(cfg.vol == max(cfg.vol)) = 2;
+cfg.cond = cond;
+
+
 % flipping left trials
-flip_leftward_trials;
+if cfg.FLIPPING
+    flip_leftward_trials;
+end 
 
 %% data prep
 
@@ -21,10 +29,6 @@ vol_levels = unique(cfg.vol(~isnan(cfg.vol)));
 if numel(vol_levels) ~= 2
     warning('Volatility levels are not 2. Check your data!');
 end
-cond = nan(size(cfg.vol));
-cond(cfg.vol == min(vol_levels)) = 1;
-cond(cfg.vol == max(vol_levels)) = 2;
-cfg.cond = cond;
 
 
 % conf (ConfY: z-scored conf)
