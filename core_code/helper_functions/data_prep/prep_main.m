@@ -1,4 +1,4 @@
-function cfg = prep_main(cfg, data_path)
+function [cfg, valid] = prep_main(cfg, data_path)
 
 % ===================== 1. Load & clean data =====================
 tmp       = load(data_path, 'all');
@@ -15,7 +15,8 @@ motion_energy_all = allStruct.motion_energy;
 rt_all        = allStruct.rt(:);
 
 valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ...
-            ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ~isnan(rt_all) & allStruct.times_dots_on == 0.2;
+            ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ...
+~isnan(rt_all) & allStruct.times_dots_on == 0.2;
 
 
 

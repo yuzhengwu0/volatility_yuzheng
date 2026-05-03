@@ -6,7 +6,7 @@ data_path = '../all_with_me.mat';
 run('cfg_default.m');
 
 % add valid trials filter
-cfg = prep_main(cfg, data_path);
+[cfg, idx] = prep_main(cfg, data_path);
 
 % redefine accuracy
 prep_answer_and_ME;
