@@ -1,4 +1,4 @@
-function plot_best_model_dots(AIC_mat, BIC_mat, modelNames, outPDF_ab)
+function plot_best_model_dots(AIC_mat, BIC_mat, modelNames, outPDF_ab, cfg)
 
 K = size(AIC_mat, 1);
 nModels = numel(modelNames);
@@ -48,7 +48,7 @@ for k = 1:K
     end
 end
 
-customModelNames = {'M0', 'M1', 'M2', 'M3', 'M4'};
+customModelNames = {'M1', 'M2', 'M3', 'M4', 'M5'};
 
 set(gca, ...
     'YTick', yModel, ...
@@ -62,7 +62,8 @@ set(gca, ...
 
 xlabel('Time bin');
 ylabel('Model');
-title('Best model per time bin: AIC (blue) and BIC (red)', 'Interpreter','none');
+title(sprintf('%s - %s - %s', cfg.VOLMODE, cfg.CORR, cfg.coh_label), 'Interpreter', 'none');
+subtitle(sprintf('n = %d', cfg.nTrials));
 
 grid on;
 box off;
