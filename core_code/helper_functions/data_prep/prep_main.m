@@ -11,16 +11,32 @@ correct_all   = allStruct.correct(:);         % 1/0
 confCont_all  = allStruct.confidence(:);      % 0-1
 vol_all       = allStruct.rdm1_coh_std(:);
 subjID_all    = allStruct.group(:);
-motion_energy_all = allStruct.motion_energy;
+motion_energy_all = allStruct.motion_energy(:);
 rt_all        = allStruct.rt(:);
+cohframes     = allStruct.rdm1_cohframes(:);
+dir           = allStruct.rdm1_dir(:);
+
+puntos = allStruct.rdm1_puntos(:);
+ncohdots = allStruct.rdm1_ncohdots(:);
 
 valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ...
             ~isnan(confCont_all) & ~isnan(vol_all) & ~isnan(subjID_all) & ...
-~isnan(rt_all) & allStruct.times_dots_on == 0.2;
+            ~isnan(rt_all) & allStruct.times_dots_on == 0.2 & ~isnan(dir);
 
+if cfg.HIGHVOL
+    valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ...
+            ~isnan(confCont_all) & ~isnan(vol_all) & vol_all == max(vol_all) & ~isnan(subjID_all) & ...
+            ~isnan(rt_all) & allStruct.times_dots_on == 0.2 & ~isnan(dir);
+end 
 
+if cfg.RTtask
+    valid_basic = ~isnan(coh_all) & ~isnan(correct_all) & ...
+            ~isnan(confCont_all) & ~isnan(vol_all) & vol_all == max(vol_all) & ~isnan(subjID_all) & ...
+            ~isnan(rt_all) & allStruct.times_dots_on ~= 0.2 & ~isnan(dir);
+end 
 
 valid = valid_basic;
+
 
 cfg.coh           = coh_all(valid);
 cfg.coh_weuse     = cfg.coh/100;
@@ -32,6 +48,10 @@ cfg.vol           = vol_all(valid);
 cfg.subjID        = subjID_all(valid);
 cfg.motion_energy = motion_energy_all(valid);
 cfg.rt            = rt_all(valid);
+cfg.puntos        = puntos(valid);
+cfg.ncohdots      = ncohdots(valid);
+cfg.cohframes     = cohframes(valid);
+cfg.dir           = dir(valid);
 
 cfg.truesessiontrial = allStruct.trialnum(valid);
 cfg.truesession = allStruct.session(valid);
