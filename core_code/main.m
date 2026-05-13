@@ -16,7 +16,6 @@ cond(cfg.vol == min(cfg.vol)) = 1;
 cond(cfg.vol == max(cfg.vol)) = 2;
 cfg.cond = cond;
 
-
 % flipping left trials
 if cfg.FLIPPING
     flip_leftward_trials;
@@ -256,6 +255,3 @@ if cfg.DO_PLOT_AICBIC_DOTS
     plot_best_model_dots(AIC_mat, BIC_mat, cfg.modelNames, cfg.outPDF_ab);
 end
 
-%% plots
-
-%% checking parameters
