@@ -1,5 +1,5 @@
 
-data_path = '../fit_rs_meta_d_MLE.m/';
+data_path = 'fit_rs_meta_d_MLE.m/';
 
 coh = cfg.coh;
 cond = cfg.cond;
@@ -118,7 +118,7 @@ xvals       = 1:length(cohlevel);
 nCoh        = length(cohlevel);
 nCond       = length(condlevel);
 nSubj       = length(subjIDlevel);
-% jitter_amt  = 0.08;   % horizontal spread for individual dots
+jitter_amt  = 0.08;   % horizontal spread for individual dots
 
 % --- extract per-subject data from results_subj(subj, cond, coh) ---
 % assumes you have results_subj(s, v, c).da / .meta_da / .M_ratio
@@ -143,7 +143,7 @@ ylabels     = {"d'", "meta-d'", "M-ratio"};
 titles      = {"d' (Perceptual Sensitivity)", ...
                "meta-d' (Metacognitive Sensitivity)", ...
                "M-ratio (Metacognitive Efficiency)"};
-ylims       = {[-0.5 6], [-0.5 6], [-1 5]};
+ylims       = {[-1 6], [-1 6], [-1 6]};
 
 for m = 1:3
     nexttile;
