@@ -47,29 +47,29 @@ end
 %% plotting betas
 colors    = {[0.5 0.8 0.5], [0.7 0.5 0.9]};   % green=incorrect, purple=correct
 accLabels = {'Incorrect', 'Correct'};
-offsets   = [-0.1, 0.1];   % x jitter so the two accuracy levels don't overlap
-offsets = [0 0];
+
 
 figure;
 hold on;
 yline(0, 'HandleVisibility', 'off');
 
+% change subject color
+subjectColors = lines(size(subject_betas, 3));
 for a = 1:2   % loop over accuracy
     color  = colors{a};
-    offset = offsets(a);
 
     % plot subject betas
     for s = 1:size(subject_betas, 3)
-        scatter([1,2] + offset, squeeze(subject_betas(a,:,s)), ...
-            40, color, 'filled', 'MarkerFaceAlpha', 0.3, 'HandleVisibility', 'off');
+        scatter([1,2], squeeze(subject_betas(a,:,s)), ...
+            40, subjectColors(s,:), 'filled', 'MarkerFaceAlpha', 0.3, 'HandleVisibility', 'off');
     end
 
-    errorbar([1,2] + offset, group_betas(a,:), group_SE(a,:), 'o', ...
+    errorbar([1,2], group_betas(a,:), group_SE(a,:), 'o', ...
         'Color', color, 'MarkerFaceColor', color, ...
         'MarkerSize', 5, 'LineWidth', 2, 'CapSize', 6, ...
         'DisplayName', accLabels{a});
 
-   plot([1,2] + offset, group_betas(a,:), '-', 'LineWidth', 2, 'Color', color, 'HandleVisibility', 'off')
+   plot([1,2], group_betas(a,:), '-', 'LineWidth', 2, 'Color', color, 'HandleVisibility', 'off')
 end
 
 xticks([1 2]);
