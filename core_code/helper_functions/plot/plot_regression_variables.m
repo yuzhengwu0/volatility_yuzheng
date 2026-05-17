@@ -1,4 +1,5 @@
 tiledlayout;
+figure;
 
 % plot z-scored confidence (outcome)
 try
