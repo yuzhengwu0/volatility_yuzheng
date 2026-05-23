@@ -12,22 +12,24 @@ nBins = cfg.nBins;
 answer_by_ME = nan(length(motion_energy));
 correct_by_ME = nan(length(motion_energy));
 
+
+
 nTrials = numel(motion_energy);
-motion_mat = nan(nTrials, nBins);
-
-
-for tr = 1:nTrials
-    raw = motion_energy{tr}(1:end);
-    firstNonZero = find(raw, 1, 'first');
-    lastNonZero = find(raw, 1, 'last');  % find last non-zero index
-    raw = raw(firstNonZero:lastNonZero);            % trim trailing zeros
-    if cfg.RTtask
+if cfg.RTtask
+    motion_mat = nan(nTrials, nBins);
+    for tr = 1:nTrials
+        raw = motion_energy{tr}(:)';
+        firstNonZero = find(raw, 1, 'first');
+        lastNonZero = find(raw, 1, 'last');  % find last non-zero index
+        raw = raw(firstNonZero:lastNonZero);            % trim trailing zeros
         interp_vec = interp1(1:length(raw), raw, linspace(1, length(raw), nBins));
-    else
-        interp_vec = raw(1:nBins);
     end 
-    motion_mat(tr, :) = interp_vec;
+else
+    for tr = 1:nTrials
+        motion_mat(tr, :) = motion_energy{tr}(3:38);
+    end
 end
+
 
 
 if cfg.REDEFINE_ANSWER
