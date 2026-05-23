@@ -1,7 +1,7 @@
 % ===== situation =====
-cfg.CORR             = 'incorr';        % 'all' / 'corr' / 'incorr'
+cfg.CORR             = 'all';        % 'all' / 'corr' / 'incorr'
 % cfg.COHHH            = '512';      % '0', '32', '64', '128', '256', '512' / 'all'
-cfg.DROP_HIGHEST_COH = false;         % remove coh == 512
+cfg.DROP_HIGHEST_COH = true;         % remove coh == 512
 cfg.REDEFINE_ANSWER  = false;    % true = correct >= ME mean
 cfg.FLIPPING         = true;
 cfg.HIGHVOL          = false;
