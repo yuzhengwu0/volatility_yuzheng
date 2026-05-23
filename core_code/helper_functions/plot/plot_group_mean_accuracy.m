@@ -10,7 +10,7 @@ confCont = cfg.confCont;
 % FLAG: set to 'volatility', 'accuracy', or 'both'
 panel_by = 'accuracy';
 % change y-axis variable
-y_var = confCont; % we can change it to 'confCont', 'ConfY', 'rtX'
+y_var = rtX; % we can change it to 'confCont', 'ConfY', 'rtX'
 % -------------------------------------------------------------------------
 
 % put all data into a table for easy grouping

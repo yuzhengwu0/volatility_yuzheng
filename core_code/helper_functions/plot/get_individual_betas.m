@@ -6,7 +6,7 @@ subjID = cfg.subjID;
 ConfY = cfg.ConfY;
 
 %fitted_models = struct();
-y_var = ConfY; % 'confCont' / 'ConfY' / 'rtX'
+y_var = rtX; % 'confCont' / 'ConfY' / 'rtX'
 x_var = coh_weuse;
 
 acc_levels = unique(Correct);

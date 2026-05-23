@@ -8,7 +8,7 @@ confCont = cfg.confCont;
 % FLAG: set to 'volatility', 'accuracy', or 'both'
 panel_by = 'both';
 % change y-axis variable
-y_var = confCont; % we can change it to 'confCont', 'ConfY', 'rtX'
+y_var = rtX; % we can change it to 'confCont', 'ConfY', 'rtX'
 % -------------------------------------------------------------------------
 
 % put all data into a table for easy grouping
@@ -146,7 +146,7 @@ for r = 1:nRows
 
         hold off;
         xlabel('Coherence Level');
-        ylabel('Mean Confidence');
+        ylabel('Mean RT');
         title(plotcfg.panelTitles{f});
         xticks(1:nCoh);
         xticklabels(string(cohLevels));
