@@ -35,12 +35,19 @@ idx_notfix = allStruct.times_dots_on ~= 0.2;
 
 valid = valid_basic & valid_fixed;
 
+if cfg.ALL
+    valid = valid_basic;
+end 
+
 if cfg.HIGHVOL
     valid = valid_basic & valid_highvol;
 end 
 
 if cfg.RTtask
     valid = valid_basic & idx_notfix;
+    if cfg.HIGHVOL
+        valid = valid_basic & idx_notfix & valid_highvol;
+    end
 end
 
 
@@ -60,6 +67,7 @@ cfg.puntos        = puntos(valid);
 cfg.ncohdots      = ncohdots(valid);
 cfg.cohframes     = cohframes(valid);
 cfg.dir           = dir(valid);
+cfg.valid_fixed   = valid_fixed(valid);
 
 cfg.truesessiontrial = allStruct.trialnum(valid);
 cfg.truesession = allStruct.session(valid);
