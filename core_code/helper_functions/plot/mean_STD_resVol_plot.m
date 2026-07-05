@@ -52,7 +52,7 @@ legend({"low vol", "high vol"})
 
 clear yline
 figure;
-tiledlayout(length(unique(coh)), 1)
+tiledlayout(length(unique(coh)), 2)
 
 thiscoh = unique(coh);
 for icoh = 1:numel(thiscoh)
@@ -89,34 +89,34 @@ for icoh = 1:numel(thiscoh)
 
 
 
-    % %evidence strength
-    % nexttile;
-    % hold on;
-    % % cond == 1
-    % idx1 = (coh == thiscoh(icoh)) & (cond == 1);
-    % data1 = evidence_strength(idx1, :);
-    % plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
-    % mu1 = mean(data1, 1, 'omitnan');
-    % % sd1 = std(data1, 0, 1, 'omitnan');
-    % 
-    % % cond == 2
-    % idx2 = (coh == thiscoh(icoh)) & (cond == 2);
-    % data2 = evidence_strength(idx2, :);
-    % plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
-    % mu2 = mean(data2, 1, 'omitnan');
-    % % sd2 = std(data2, 0, 1, 'omitnan');
-    % 
-    % x = 1:size(evidence_strength, 2);
-    % plot(x, mu1, 'b', 'LineWidth', 1.5)
-    % plot(x, mu2, 'r', 'LineWidth', 1.5)
-    % % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
-    % % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
-    % 
-    % ylim([-0.0002 0.0005])
-    % title(sprintf('coh = %g', thiscoh(icoh)))
-    % xlabel('windows')
-    % ylabel('evidence strength')
-    % yline(0, 'HandleVisibility', 'off');
+    %evidence strength
+    nexttile;
+    hold on;
+    % cond == 1
+    idx1 = (coh == thiscoh(icoh)) & (cond == 1);
+    data1 = motion_diff(idx1, :);
+    plot(data1', 'Color', [0 0 1 0.05], 'LineWidth', 0.005);
+    mu1 = mean(data1, 1, 'omitnan');
+    % sd1 = std(data1, 0, 1, 'omitnan');
+
+    % cond == 2
+    idx2 = (coh == thiscoh(icoh)) & (cond == 2);
+    data2 = motion_diff(idx2, :);
+    plot(data2', 'Color', [1 0 0 0.05], 'LineWidth', 0.005);
+    mu2 = mean(data2, 1, 'omitnan');
+    % sd2 = std(data2, 0, 1, 'omitnan');
+
+    x = 1:size(motion_diff, 2);
+    plot(x, mu1, 'b', 'LineWidth', 1.5)
+    plot(x, mu2, 'r', 'LineWidth', 1.5)
+    % errorbar(x, mu1, sd1, 'b', 'LineWidth', 1.5);
+    % errorbar(x, mu2, sd2, 'r', 'LineWidth', 1.5);
+
+    ylim([-0.0002 0.0005])
+    title(sprintf('coh = %g', thiscoh(icoh)))
+    xlabel('windows')
+    ylabel('motion diff')
+    yline(0, 'HandleVisibility', 'off');
 
     % %volatility strength
     % nexttile;
