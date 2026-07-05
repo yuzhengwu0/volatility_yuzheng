@@ -81,7 +81,7 @@ vol_distribution_scatter_plot
 %% exclude criteria
 % exclude coh == 512
 if cfg.DROP_HIGHEST_COH
-    keep_coh = (cfg.coh_weuse ~= 5.12);
+    keep_coh = (cfg.coh_weuse ~= 5.12 & cfg.coh_weuse ~= 2.56);
 else
     keep_coh = true(size(cfg.coh));
 end
