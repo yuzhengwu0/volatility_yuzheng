@@ -4,6 +4,7 @@ Correct = cfg. Correct;
 cond = cfg.cond;
 subjID = cfg.subjID;
 ConfY = cfg.ConfY;
+rtX = cfg.rtX;
 
 %fitted_models = struct();
 y_var = rtX; % 'confCont' / 'ConfY' / 'rtX'
