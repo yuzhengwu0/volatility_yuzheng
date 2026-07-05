@@ -13,6 +13,11 @@ run('cfg_default.m');
 % redefine accuracy
 prep_answer_and_ME;
 
+cond = nan(size(cfg.vol));
+cond(cfg.vol == min(cfg.vol)) = 1;
+cond(cfg.vol == max(cfg.vol)) = 2;
+cfg.cond = cond;
+
 % flipping left trials
 if cfg.FLIPPING
     flip_leftward_trials;
@@ -29,73 +34,98 @@ cfg.confCont = confCont;
 rtX = transform_rt(cfg);
 cfg.rtX = rtX;
 
-% coh
+%% switch between moco_diff and ME!
+% if use coh_diff
 trial_coh = cfg.coh ./ 1000;
-coh_mat = repmat(trial_coh, [1, 17]);
-
-% vol1 & vol2
-% get momentary coherence - interpolate each trial to 17 frames (for RT task)
-moco_mat = NaN(nTrials, 17);
-for t = 1:height(cfg.cohframes)
-    frames = cfg.cohframes{t};          % variable-length vector for this trial
-    n = numel(frames);
-    if n == 17
-        moco_mat(t, :) = frames';
-    else
-        x_orig = linspace(1, 17, n);    % original timepoints scaled to 1–17
-        x_new  = 1:17;                  % target timepoints
-        moco_mat(t, :) = interp1(x_orig, frames, x_new, 'linear');
+if VOL_USE_ME == false
+    % coh
+    coh_mat = repmat(trial_coh, [1, 17]);
+    
+    % vol1 & vol2
+    % get momentary coherence - interpolate each trial to 17 frames (for RT task)
+    moco_mat = NaN(nTrials, 17);
+    for t = 1:height(cfg.cohframes)
+        frames = cfg.cohframes{t};          % variable-length vector for this trial
+        n = numel(frames);
+        if n == 17
+            moco_mat(t, :) = frames';
+        else
+            x_orig = linspace(1, 17, n);    % original timepoints scaled to 1–17
+            x_new  = 1:17;                  % target timepoints
+            moco_mat(t, :) = interp1(x_orig, frames, x_new, 'linear');
+        end
     end
-end
-
-% get direction of stim on each trial
-trial_dir = cfg.dir;
-trial_dir(trial_dir==180) = -1;
-trial_dir(trial_dir==0) = 1;
-% make trial coherence signed (-1 = left, +1 = right)
-coh_mat_dir = coh_mat.* trial_dir;
-% use the same signage for momentary coherence
-moco_mat_dir = moco_mat .* trial_dir;
-
-switch cfg.VOLMODE
-    case 'vol1'
-        % compute frame-by-frame difference in coherence
-        moco_diff = moco_mat_dir - coh_mat_dir;
-        vol = moco_diff;
-    case 'vol2'
-        vol2_signed = NaN(nTrials, 17);
-        for t = 1:nTrials
-            for f = 2:17
-                vol2_signed(t, f) = moco_mat_dir(t, f) - moco_mat_dir(t, f-1);
-            end
-        end
-        vol2_abs = abs(vol2_signed);
-        vol = vol2_signed; % or change to vol2_abs
-    case 'vol3dir'
-        vol3 = NaN(nTrials, 17);
-        for t = 1:nTrials
-            for i = 1:17
-                if i == 1
-                    vol3(t,i) = moco_mat_dir(t, i);
-                else 
-                    vol3(t,i) = moco_mat_dir(t, i) + vol3(t, i-1);
+    
+    % get direction of stim on each trial
+    trial_dir = cfg.dir;
+    trial_dir(trial_dir==180) = -1;
+    trial_dir(trial_dir==0) = 1;
+    % make trial coherence signed (-1 = left, +1 = right)
+    coh_mat_dir = coh_mat.* trial_dir;
+    % use the same signage for momentary coherence
+    moco_mat_dir = moco_mat .* trial_dir;
+    
+    switch cfg.VOLMODE
+        case 'vol1'
+            % compute frame-by-frame difference in coherence
+            moco_diff = moco_mat_dir - coh_mat_dir;
+            vol = moco_diff;
+        case 'vol2'
+            vol2_signed = NaN(nTrials, 17);
+            for t = 1:nTrials
+                for f = 2:17
+                    vol2_signed(t, f) = moco_mat_dir(t, f) - moco_mat_dir(t, f-1);
                 end
             end
-        end
-        vol = vol3;
-    case 'vol3abs'
-        vol3 = NaN(nTrials, 17);
-        for t = 1:nTrials
-            for i = 1:17
-                if i == 1
-                    vol3(t,i) = moco_mat_dir(t, i);
-                else 
-                    vol3(t,i) = moco_mat_dir(t, i) + vol3(t, i-1);
+            vol2_abs = abs(vol2_signed);
+            vol = vol2_signed; % or change to vol2_abs
+        case 'vol3dir'
+            vol3 = NaN(nTrials, 17);
+            for t = 1:nTrials
+                for i = 1:17
+                    if i == 1
+                        vol3(t,i) = moco_mat_dir(t, i);
+                    else 
+                        vol3(t,i) = moco_mat_dir(t, i) + vol3(t, i-1);
+                    end
                 end
             end
+            vol = vol3;
+        case 'vol3abs'
+            vol3 = NaN(nTrials, 17);
+            for t = 1:nTrials
+                for i = 1:17
+                    if i == 1
+                        vol3(t,i) = moco_mat_dir(t, i);
+                    else 
+                        vol3(t,i) = moco_mat_dir(t, i) + vol3(t, i-1);
+                    end
+                end
+            end
+            vol = abs(vol3);
+    end 
+
+% if use ME
+else
+    thiscoh = unique(trial_coh);
+    thiscond = unique(cfg.cond);
+    
+    motion_diff = nan(size(motion_mat));
+    
+    for icoh = 1:numel(thiscoh)
+        for icond = 1:numel(thiscond)
+            idx = (trial_coh == thiscoh(icoh)) & (cfg.cond == thiscond(icond));
+            data = motion_mat(idx, :);
+            cond_coh_mean_ME = mean(data, 1, 'omitnan');
+            motion_diff(idx, :) = data - cond_coh_mean_ME;
+            vol = motion_diff;
         end
-        vol = abs(vol3);
+    end 
 end 
+
+
+
+
 
 cfg.vol = vol;
 cfg.trial_coh = trial_coh;
