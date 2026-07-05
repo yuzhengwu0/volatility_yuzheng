@@ -2,7 +2,7 @@ function [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, ...
     twoWayNames, twoWayLabels] = build_model_family_wyz()
 
 % model family 2:
-% fixed terms: RT (R), accuracy (C), coherence (coh), vol cohition (coh)
+% fixed terms: RT (R), coherence (coh), vol cohition (coh)
 % M1: intercept + RT + trial_coh
 % M2: intercept + RT + trial_coh + momentary_vol
 % M3: intercept + RT + trial_coh + momentary_vol + trial_coh * momentary_vol
