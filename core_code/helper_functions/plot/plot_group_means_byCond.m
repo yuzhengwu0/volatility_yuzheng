@@ -4,6 +4,7 @@ z_cond = cfg.cond;
 Correct = cfg.Correct;
 coh_weuse = cfg.coh_weuse;
 confCont = cfg.confCont;
+rtX = cfg.rtX;
 
 % FLAG: set to 'volatility', 'accuracy', or 'both'
 panel_by = 'both';
