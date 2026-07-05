@@ -1,14 +1,15 @@
 % ===== situation =====
-cfg.CORR             = 'all';        % 'all' / 'corr' / 'incorr'
+cfg.CORR             = 'corr';        % 'all' / 'corr' / 'incorr'
 % cfg.COHHH            = '512';      % '0', '32', '64', '128', '256', '512' / 'all'
 cfg.DROP_HIGHEST_COH = false;         % remove coh == 512
 cfg.REDEFINE_ANSWER  = false;    % true = correct >= ME mean
 cfg.FLIPPING         = true;
 cfg.HIGHVOL          = false;
-cfg.VOLMODE          = 'vol3abs';   % 'vol1' - difference from trial_coh; 'vol2' - difference of last frame
+cfg.VOLMODE          = 'abcde';   % 'vol1' - difference from trial_coh; 'vol2' - difference of last frame
                                  % 'vol3dir' - cumulative with direction;
                                  % 'vol3abs' - cumulative with abs val
-cfg.RTtask           = true;
+VOL_USE_ME           = true;
+cfg.RTtask           = false;
 cfg.ALL        = false;
 
 % ===== predictor =====
@@ -23,7 +24,7 @@ cfg.P_PERF_MODE      = 'online';     % 'all' / 'online'
 
 
 % ===== model =====
-cfg.MODEL_FAMILY     = 'wyz';      % 'cond' / 'coh' / 'blend'/ 'wyz' / 'wyzcoh'
+cfg.MODEL_FAMILY     = 'wyzcoh';      % 'cond' / 'coh' / 'blend'/ 'wyz' / 'wyzcoh'
 cfg.OUTCOME          = 'conf';       % 'conf' / 'acc' / 'rt'
 
 % ===== quarter bar plot parameter =====
