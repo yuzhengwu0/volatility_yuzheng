@@ -34,7 +34,7 @@ cfg.confCont = confCont;
 rtX = transform_rt(cfg);
 cfg.rtX = rtX;
 
-%% switch between moco_diff and ME!
+% switch between moco_diff and ME!
 % if use coh_diff
 trial_coh = cfg.coh ./ 1000;
 if VOL_USE_ME == false
@@ -126,8 +126,8 @@ end
 
 
 
-
-cfg.vol = vol;
+zvol = zscore(vol);
+cfg.vol = zvol;
 cfg.trial_coh = trial_coh;
 
 
@@ -157,7 +157,12 @@ switch cfg.MODEL_FAMILY
         coh_levels = [-1];  % -1 = all
     case 'wyzcoh'
         cfg_orig = cfg;
-        coh_levels = [0, 32, 64, 128, 256, 512, -1];  % -1 = all
+        % coh_levels = [256];  % -1 = all
+        coh_levels = [0, 32, 64, 128, 256, 512, -1];
+    case 'wyzcond'
+        cfg_orig = cfg;
+        coh_levels = [128];  % -1 = all
+        % coh_levels = [0, 32, 64, 128, 256, 512, -1];
 end
 
 for ci = 1:numel(coh_levels)
@@ -185,6 +190,7 @@ for ci = 1:numel(coh_levels)
     cfg.rtX                 = cfg.rtX(valid);
     cfg.subjID              = cfg.subjID(valid);
     cfg.coh                 = cfg.coh(valid);
+    cfg.cond                = cfg.cond(valid);
     cfg.vol                 = cfg.vol(valid, :);
     cfg.req                 = cfg.req(valid);
     cfg.given               = cfg.given(valid);
@@ -209,6 +215,8 @@ for ci = 1:numel(coh_levels)
                         twoWayNames, twoWayLabels] = build_model_family_wyz();
                 case 'wyzcoh'
                     [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels] = build_model_family_wyzcoh();
+                case 'wyzcond'
+                    [modelNames, modelSpec, baseLabels, oneWayNames, oneWayLabels, twoWayNames, twoWayLabels] = build_model_family_wyzcond();
             end
     end
 
@@ -239,6 +247,8 @@ for ci = 1:numel(coh_levels)
                     [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_wyz(cfg);
                 case 'wyzcoh'
                     [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_wyzcoh(cfg);
+                case 'wyzcond'
+                    [Fitted_models, AIC_mat, BIC_mat, Nobs_mat] = fit_model_wyzcond(cfg);
             end
     end
 
