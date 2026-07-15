@@ -161,7 +161,7 @@ switch cfg.MODEL_FAMILY
         coh_levels = [0, 32, 64, 128, 256, 512, -1];
     case 'wyzcond'
         cfg_orig = cfg;
-        coh_levels = [128];  % -1 = all
+        coh_levels = [0];  % -1 = all
         % coh_levels = [0, 32, 64, 128, 256, 512, -1];
 end
 
